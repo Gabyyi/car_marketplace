@@ -5,10 +5,10 @@
         <div class="h-9 w-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold">
           <i class="pi pi-car text-xl"></i>
         </div>
-        <span class="text-lg font-semibold text-gray-900">Car Marketplace</span>
+        <span class="text-3xl font-medium text-gray-900"><router-link to="/" class="text-blue-500">CarBuy.ro</router-link></span>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div v-if="!hideActions" class="flex items-center gap-3">
         <button
           type="button"
           class="h-10 w-10 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
@@ -16,12 +16,7 @@
         >
           <i class="pi pi-bell text-lg"></i>
         </button>
-        <button
-          type="button"
-          class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition"
-        >
-          Login
-        </button>
+        <router-link to="/login" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">Login</router-link>
       </div>
     </div>
   </header>
@@ -29,6 +24,9 @@
 
 <script>
 export default {
-  name: 'HeaderBar'
+  name: 'HeaderBar',
+  props: {
+    hideActions: { type: Boolean, default: false }
+  }
 }
 </script>

@@ -6,7 +6,7 @@
 
     <div class="mt-3">
       <div class="text-sm font-medium text-gray-900">{{ car.make }} {{ car.model }}</div>
-      <div class="mt-1 text-lg font-semibold text-gray-900">€{{ car.price }}</div>
+      <div class="mt-1 text-lg font-medium text-gray-900">€{{ car.price }}</div>
 
       <div class="mt-2 flex flex-wrap gap-2 text-xs">
         <span v-for="(t, i) in tagList" :key="i" class="rounded-full bg-gray-100 px-2 py-1 text-gray-700">{{ t }}</span>

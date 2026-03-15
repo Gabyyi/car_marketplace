@@ -2,14 +2,14 @@
   <section class="space-y-6 py-6">
     <article class="relative overflow-hidden rounded-3xl bg-blue-500 px-5 py-6 sm:px-8 sm:py-8 md:px-10 md:py-10">
       <div class="relative z-10 max-w-2xl">
-        <h1 class="text-3xl font-semibold text-white sm:text-4xl">Ready to sell?</h1>
+        <h1 class="text-3xl font-medium text-white sm:text-4xl">Ready to sell?</h1>
         <p class="mt-3 text-lg leading-snug text-blue-100 sm:text-2xl">
           Post your vehicle in minutes and reach thousands of local buyers.
         </p>
 
         <button
           type="button"
-          class="mt-7 inline-flex items-center gap-3 rounded-2xl bg-white px-6 py-3 text-2xl font-semibold text-blue-500 shadow-sm transition hover:bg-blue-50"
+          class="mt-7 inline-flex items-center gap-3 rounded-2xl bg-white px-6 py-3 text-2xl font-medium text-blue-500 shadow-sm transition hover:bg-blue-50"
         >
           <i class="pi pi-plus-circle text-3xl"></i>
           <span>Sell Your Car</span>
@@ -20,7 +20,7 @@
     </article>
 
     <article class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
-      <h2 class="text-xl font-semibold text-gray-900">General Search</h2>
+      <h2 class="text-xl font-medium text-gray-900">General Search</h2>
 
       <div class="mt-5 grid grid-cols-2 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div>
@@ -108,7 +108,7 @@
           <div class="grid grid-cols-1 gap-2">
             <button
             type="button"
-            class="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-blue-500 px-10 py-2 text-lg font-semibold text-white transition hover:bg-blue-600 sm:w-auto"
+            class="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-blue-500 px-10 py-2 text-lg font-medium text-white transition hover:bg-blue-600 sm:w-auto"
           >
             <i class="pi pi-search text-lg"></i>
             <span>Search</span>
@@ -119,11 +119,11 @@
       </div>
 
         <div class="mt-3 flex items-center justify-center gap-10 md:justify-end md:gap-8">
-          <a href="#" class="inline-flex items-center gap-2 text-base font-semibold text-blue-600 hover:text-blue-700 hover:underline">
+          <a href="#" class="inline-flex items-center gap-2 text-base font-medium text-blue-600 hover:text-blue-700 hover:underline">
             <i class="pi pi-refresh"></i>
             <span>Reset</span>
           </a>
-          <a href="#" class="inline-flex items-center gap-2 text-base font-semibold text-blue-600 hover:text-blue-700 hover:underline">
+          <a href="#" class="inline-flex items-center gap-2 text-base font-medium text-blue-600 hover:text-blue-700 hover:underline">
             <i class="pi pi-sliders-h"></i>
             <span>More filters</span>
           </a>
@@ -133,7 +133,7 @@
     <CarAdCard />
 
     <article class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
-      <h2 class="text-3xl font-semibold text-gray-900">Top deals for you</h2>
+      <h2 class="text-3xl font-medium text-gray-900">Top deals for you</h2>
       <div class="mt-4 relative">
         <div ref="swipeContainer" class="-mx-3 flex gap-4 overflow-x-auto px-3 py-2 snap-x snap-mandatory touch-pan-x">
           <SwipeCar v-for="(c, idx) in swipeCars" :key="idx" :car="c" />

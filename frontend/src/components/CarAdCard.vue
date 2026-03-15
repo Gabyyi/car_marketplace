@@ -12,11 +12,11 @@
       </div>
 
       <div class="w-full p-4 md:w-1/3 md:flex md:flex-col">
-        <h3 class="text-2xl font-semibold text-gray-900">{{ make }} {{ model }}</h3>
+        <h3 class="text-2xl font-medium text-gray-900">{{ make }} {{ model }}</h3>
         <p class="mt-1 truncate text-sm text-gray-600">{{ description }}</p>
 
         <div class="mt-4">
-          <p class="text-3xl font-extrabold text-gray-900">€{{ price }}</p>
+          <p class="text-3xl font-semibold text-gray-900">€{{ price }}</p>
           <p class="mt-1 text-sm font-medium text-emerald-700"> {{ valueRating }} </p>
         </div>
 
@@ -72,11 +72,11 @@
 
             <!-- Action buttons: on mobile they sit on same row (parent is row), on md+ they move below and align end -->
             <div class="ml-2 flex gap-2 md:ml-0 md:mt-8 md:self-end">
-              <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 transition">
+              <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 transition">
                 <i class="pi pi-phone"></i>
                 <span>Contact</span>
               </button>
-              <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+              <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
                 <i class="pi pi-heart"></i>
                 <span>Park</span>
               </button>
