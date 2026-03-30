@@ -1,17 +1,17 @@
 <template>
-  <header class="w-full bg-white border-b border-gray-200">
+  <header :class="headerClasses">
     <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="h-9 w-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold">
           <i class="pi pi-car text-xl"></i>
         </div>
-        <span class="text-3xl font-medium text-gray-900"><router-link to="/" class="text-blue-500">CarBuy.ro</router-link></span>
+        <span :class="logoClass"><router-link to="/" class="text-blue-500">CarBuy.ro</router-link></span>
       </div>
 
       <div v-if="!hideActions" class="flex items-center gap-3">
         <button
           type="button"
-          class="h-10 w-10 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+          :class="notifBtnClass"
           aria-label="Notifications"
         >
           <i class="pi pi-bell text-lg"></i>
@@ -22,11 +22,22 @@
   </header>
 </template>
 
-<script>
-export default {
-  name: 'HeaderBar',
-  props: {
-    hideActions: { type: Boolean, default: false }
-  }
-}
+<script setup>
+import { computed } from 'vue'
+import { useTheme } from '../composables/useTheme'
+
+const props = defineProps({ hideActions: { type: Boolean, default: false } })
+const { theme } = useTheme()
+
+const headerClasses = computed(() => [
+  'w-full',
+  theme.value === 'dark' ? 'bg-gray-900 border-b border-gray-700' : 'bg-white border-b border-gray-200'
+].join(' '))
+
+const logoClass = computed(() => ['text-3xl', 'font-medium', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
+
+const notifBtnClass = computed(() => [
+  'h-10', 'w-10', 'rounded-full', 'transition',
+  theme.value === 'dark' ? 'border border-gray-600 text-gray-200 hover:bg-gray-800' : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+].join(' '))
 </script>

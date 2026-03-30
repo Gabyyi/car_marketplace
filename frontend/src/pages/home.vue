@@ -19,13 +19,13 @@
       <i class="pi pi-car absolute -bottom-4 right-3 text-[220px] text-blue-400/40"></i>
     </article>
 
-    <article class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
-      <h2 class="text-xl font-medium text-gray-900">General Search</h2>
+    <article :class="searchCardClass">
+      <h2 :class="searchTitleClass">General Search</h2>
 
       <div class="mt-5 grid grid-cols-2 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div>
-          <label class="mb-2 block text-sm font-medium text-gray-700">Make</label>
-          <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none">
+          <label :class="labelClass">Make</label>
+          <select :class="formSelectClass">
             <option>Any make</option>
             <option>BMW</option>
             <option>Audi</option>
@@ -34,8 +34,8 @@
         </div>
 
         <div>
-          <label class="mb-2 block text-sm font-medium text-gray-700">Model</label>
-          <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none">
+          <label :class="labelClass">Model</label>
+          <select :class="formSelectClass">
             <option>Any model</option>
             <option>Series 3</option>
             <option>A4</option>
@@ -44,16 +44,16 @@
         </div>
 
         <div class="col-span-2 md:col-span-1">
-          <label class="mb-2 block text-sm font-medium text-gray-700">Price Range</label>
+          <label :class="labelClass">Price Range</label>
           <div class="grid grid-cols-2 gap-2">
-            <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none">
+            <select :class="formSelectClass">
               <option>Min</option>
               <option>€1,000</option>
               <option>€5,000</option>
               <option>€10,000</option>
               <option>€20,000</option>
             </select>
-            <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none">
+            <select :class="formSelectClass">
               <option>Max</option>
               <option>€10,000</option>
               <option>€20,000</option>
@@ -64,16 +64,16 @@
         </div>
 
         <div class="col-span-2 md:col-span-1">
-          <label class="mb-2 block text-sm font-medium text-gray-700">Year Range</label>
+          <label :class="labelClass">Year Range</label>
           <div class="grid grid-cols-2 gap-2">
-            <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none">
+            <select :class="formSelectClass">
               <option>From</option>
               <option>2005</option>
               <option>2010</option>
               <option>2015</option>
               <option>2020</option>
             </select>
-            <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none">
+            <select :class="formSelectClass">
               <option>To</option>
               <option>2015</option>
               <option>2018</option>
@@ -84,16 +84,16 @@
         </div>
 
         <div class="col-span-2 md:col-span-1">
-          <label class="mb-2 block text-sm font-medium text-gray-700">Kilometers Range</label>
+          <label :class="labelClass">Kilometers Range</label>
           <div class="grid grid-cols-2 gap-2">
-            <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none">
+            <select :class="formSelectClass">
               <option>Min</option>
               <option>0 km</option>
               <option>25,000 km</option>
               <option>50,000 km</option>
               <option>100,000 km</option>
             </select>
-            <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none">
+            <select :class="formSelectClass">
               <option>Max</option>
               <option>50,000 km</option>
               <option>100,000 km</option>
@@ -132,20 +132,20 @@
 
     <CarAdCard />
 
-    <article class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
-      <h2 class="text-3xl font-medium text-gray-900">Top deals for you</h2>
+    <article :class="searchCardClass">
+      <h2 :class="topDealsTitleClass">Top deals for you</h2>
       <div class="mt-4 relative">
         <div ref="swipeContainer" class="-mx-3 flex gap-4 overflow-x-auto px-3 py-2 snap-x snap-mandatory touch-pan-x">
           <SwipeCar v-for="(c, idx) in swipeCars" :key="idx" :car="c" />
         </div>
 
         <div class="absolute right-2 top-1/2 hidden -translate-y-1/2 md:block">
-          <button @click="scrollNext" class="rounded-full bg-white/90 p-2 shadow-md hover:bg-white">
+          <button @click="scrollNext" :class="arrowBtnClass">
             <i class="pi pi-chevron-right"></i>
           </button>
         </div>
         <div class="absolute left-2 top-1/2 hidden -translate-y-1/2 md:block">
-          <button @click="scrollPrev" class="rounded-full bg-white/90 p-2 shadow-md hover:bg-white">
+          <button @click="scrollPrev" :class="arrowBtnClass">
             <i class="pi pi-chevron-left"></i>
           </button>
         </div>
@@ -155,15 +155,17 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import CarAdCard from '../components/CarAdCard.vue'
 import SwipeCar from '../components/SwipeCar.vue'
+import { useTheme } from '../composables/useTheme'
 
 export default {
   name: 'HomePage',
   components: { CarAdCard, SwipeCar },
   setup() {
     const swipeContainer = ref(null)
+    const { theme } = useTheme()
 
     const swipeCars = [
       { image: 'https://images.unsplash.com/photo-1493238792000-8113da705763?auto=format&fit=crop&w=800&q=80', make: 'BMW', model: 'M3', price: '45,000', fuelType: 'Petrol', gearbox: 'Automatic', power: '375hp', kilometers: '50,000 km', year: '2019', location: 'Bucharest' },
@@ -183,7 +185,14 @@ export default {
       swipeContainer.value.scrollBy({ left: -swipeContainer.value.clientWidth * 0.7, behavior: 'smooth' })
     }
 
-    return { swipeContainer, swipeCars, scrollNext, scrollPrev }
+    const searchCardClass = computed(() => ['rounded-3xl', 'p-5', 'shadow-sm', 'sm:p-6', 'md:p-8', theme.value === 'dark' ? 'border border-gray-700 bg-gray-900' : 'border border-gray-200 bg-white'].join(' '))
+    const searchTitleClass = computed(() => ['text-xl', 'font-medium', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
+    const topDealsTitleClass = computed(() => ['text-3xl', 'font-medium', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
+    const arrowBtnClass = computed(() => ['rounded-full', 'p-2', 'transition', theme.value === 'dark' ? 'bg-gray-800 border border-gray-700 shadow-md text-gray-200 hover:bg-gray-700' : 'bg-white/90 border border-gray-200 shadow-md hover:bg-white'].join(' '))
+    const labelClass = computed(() => ['mb-2', 'block', 'text-sm', 'font-medium', theme.value === 'dark' ? 'text-gray-300' : 'text-gray-700'].join(' '))
+    const formSelectClass = computed(() => ['w-full', 'rounded-lg', 'border', 'px-3', 'py-2', 'text-sm', 'focus:border-blue-500', 'focus:outline-none', theme.value === 'dark' ? 'border-gray-600 bg-gray-800 text-gray-200' : 'border-gray-300 bg-white text-gray-700'].join(' '))
+
+    return { swipeContainer, swipeCars, scrollNext, scrollPrev, searchCardClass, searchTitleClass, topDealsTitleClass, arrowBtnClass, labelClass, formSelectClass }
   }
 }
 </script>
