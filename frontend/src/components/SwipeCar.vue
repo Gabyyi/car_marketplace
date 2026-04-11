@@ -1,5 +1,5 @@
 <template>
-  <div :class="containerClass">
+  <div :class="containerClass" @click="openCar">
     <div :class="imgWrapperClass">
       <img :src="car.image" :alt="car.make + ' ' + car.model" class="h-full w-full object-cover object-center" />
     </div>
@@ -22,6 +22,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useTheme } from '../composables/useTheme'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   car: {
@@ -43,7 +44,7 @@ const props = defineProps({
 
 const { theme } = useTheme()
 
-const containerClass = computed(() => ['w-64', 'snap-start', 'shrink-0', 'rounded-xl', 'p-3', theme.value === 'dark' ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'].join(' '))
+const containerClass = computed(() => ['w-64', 'snap-start', 'shrink-0', 'rounded-xl', 'p-3', 'cursor-pointer', theme.value === 'dark' ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'].join(' '))
 const imgWrapperClass = computed(() => ['aspect-4/3', 'overflow-hidden', 'rounded-md', theme.value === 'dark' ? 'bg-gray-800' : 'bg-gray-100'].join(' '))
 const titleClass = computed(() => ['text-sm', 'font-medium', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
 const priceClass = computed(() => ['mt-1', 'text-lg', 'font-medium', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
@@ -51,4 +52,9 @@ const tagClass = computed(() => ['rounded-full', 'px-2', 'py-1', theme.value ===
 const locationClass = computed(() => ['mt-8', 'text-sm', theme.value === 'dark' ? 'text-gray-300' : 'text-gray-600'].join(' '))
 
 const tagList = computed(() => [props.car.year, props.car.kilometers, props.car.power, props.car.gearbox, props.car.fuelType].filter(Boolean))
+
+const router = useRouter()
+function openCar() {
+  router.push({ name: 'CarAd' })
+}
 </script>

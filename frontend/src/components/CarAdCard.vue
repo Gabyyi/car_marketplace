@@ -1,5 +1,5 @@
 <template>
-  <article :class="cardClasses">
+  <article :class="cardClasses" @click="openCar">
     <div class="flex flex-col md:flex-row">
         <div class="w-full p-3 md:w-2/3 md:p-4">
         <div :class="imageWrapperClass">
@@ -92,6 +92,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useTheme } from '../composables/useTheme'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   imageUrl: { type: String, default: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80' },
@@ -116,7 +117,7 @@ const props = defineProps({
 const { theme } = useTheme()
 
 const cardClasses = computed(() => [
-  'overflow-hidden', 'rounded-2xl', 'shadow-sm',
+  'overflow-hidden', 'rounded-2xl', 'shadow-sm', 'cursor-pointer',
   theme.value === 'dark' ? 'border border-gray-700 bg-gray-900' : 'border border-gray-200 bg-white'
 ].join(' '))
 
@@ -143,5 +144,10 @@ const displayedDealer = computed(() => Object.assign({}, defaultDealer, props.de
 
 function starArray(rating) {
   return Math.max(0, Math.round(rating || 0))
+}
+
+const router = useRouter()
+function openCar() {
+  router.push({ name: 'CarAd' })
 }
 </script>
