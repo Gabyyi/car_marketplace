@@ -18,7 +18,7 @@ async function start() {
     process.exit(1)
   }
   try {
-    await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    await mongoose.connect(MONGO_URI, { dbName: process.env.DB_NAME })
     console.log('Connected to MongoDB')
   } catch (err) {
     console.error('MongoDB connection error', err)
@@ -32,6 +32,9 @@ async function start() {
   app.get('/', (req, res) => res.json({ ok: true }))
 
   app.listen(PORT, () => console.log(`Server listening on ${PORT}`))
+
+  // console.log('Connected to DB:', mongoose.connection.name)
+  // console.log('MONGO_URI:', process.env.MONGO_URI)
 }
 
 start()

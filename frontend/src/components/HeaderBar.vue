@@ -16,18 +16,47 @@
         >
           <i class="pi pi-bell text-lg"></i>
         </button>
-        <router-link to="/login" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">Login</router-link>
+        <button
+          v-if="isLoggedIn"
+          type="button"
+          @click="goToProfile"
+          :class="notifBtnClass"
+          aria-label="Profile"
+        >
+          <i class="pi pi-user text-lg"></i>
+        </button>
+        <router-link v-else to="/login" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">Login</router-link>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
 
 const props = defineProps({ hideActions: { type: Boolean, default: false } })
 const { theme } = useTheme()
+const router = useRouter()
+
+const username = ref(localStorage.getItem('username'))
+const isLoggedIn = computed(() => !!username.value)
+
+function onAuthChanged() {
+  username.value = localStorage.getItem('username')
+}
+
+onMounted(() => {
+  window.addEventListener('authChanged', onAuthChanged)
+})
+onUnmounted(() => {
+  window.removeEventListener('authChanged', onAuthChanged)
+})
+
+function goToProfile() {
+  router.push({ name: 'Profile' })
+}
 
 const headerClasses = computed(() => [
   'w-full',

@@ -146,6 +146,10 @@ export default {
         const data = await res.json()
         if (!res.ok) throw new Error(data.message || 'Signup failed')
         localStorage.setItem('token', data.token)
+        if (data.user && data.user.username) {
+          localStorage.setItem('username', data.user.username)
+        }
+        window.dispatchEvent(new Event('authChanged'))
         this.router.push({ name: 'Home' })
       } catch (err) {
         alert(err.message || 'Signup error')

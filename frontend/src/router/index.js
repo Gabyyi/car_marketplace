@@ -4,6 +4,7 @@ import LoginPage from '../pages/Login.vue'
 import SignupPage from '../pages/Signup.vue'
 import CarAdPage from '../pages/CarAd.vue'
 import SearchResult from '../pages/SearchResult.vue'
+import ProfilePage from '../pages/ProfilePage.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: HomePage },
@@ -11,6 +12,7 @@ const routes = [
   { path: '/login', name: 'Login', component: LoginPage }
   ,{ path: '/signup', name: 'Signup', component: SignupPage }
   ,{ path: '/car', name: 'CarAd', component: CarAdPage }
+  ,{ path: '/profile', name: 'Profile', component: ProfilePage }
 ]
 
 const router = createRouter({
