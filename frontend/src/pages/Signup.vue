@@ -3,7 +3,7 @@
     <div :class="cardClass">
       <div class="md:flex">
         <!-- Left: form -->
-        <div class="p-6 w-full md:w-1/2">
+        <div class="pl-4 pr-4 w-full md:w-1/2">
           <!-- Top blue area with car icon -->
           <div class="-mx-6 h-40 bg-blue-500 flex items-center justify-end rounded-t-2xl mb-4 px-6">
               <i class="pi pi-car text-blue-400/40 text-9xl"></i>

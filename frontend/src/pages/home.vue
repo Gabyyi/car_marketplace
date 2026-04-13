@@ -107,12 +107,13 @@
           <label class="mb-2 mt-6 block text-sm font-medium text-gray-700"></label>
           <div class="grid grid-cols-1 gap-2">
             <button
-            type="button"
-            class="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-blue-500 px-10 py-2 text-lg font-medium text-white transition hover:bg-blue-600 sm:w-auto"
-          >
-            <i class="pi pi-search text-lg"></i>
-            <span>Search</span>
-          </button>
+              type="button"
+              @click="$router.push('/search')"
+              class="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-blue-500 px-10 py-2 text-lg font-medium text-white transition hover:bg-blue-600 sm:w-auto"
+            >
+              <i class="pi pi-search text-lg"></i>
+              <span>Search</span>
+            </button>
           </div>
         </div>
 
@@ -130,6 +131,7 @@
         </div>
     </article>
 
+    <MainCarAdCard />
     <CarAdCard />
 
     <article :class="searchCardClass">
@@ -156,13 +158,13 @@
 
 <script>
 import { ref, computed } from 'vue'
-import CarAdCard from '../components/CarAdCard.vue'
+import MainCarAdCard from '../components/MainCarAdCard.vue'
 import SwipeCar from '../components/SwipeCar.vue'
 import { useTheme } from '../composables/useTheme'
 
 export default {
   name: 'HomePage',
-  components: { CarAdCard, SwipeCar },
+  components: { MainCarAdCard, SwipeCar },
   setup() {
     const swipeContainer = ref(null)
     const { theme } = useTheme()

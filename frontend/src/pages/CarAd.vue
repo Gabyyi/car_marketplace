@@ -25,7 +25,7 @@
 
 							<div class="p-2">
 								<div class="mt-0 mb-3  flex items-center justify-center gap-3 overflow-x-auto py-1 px-2">
-									<div v-for="(thumb, idx) in images" :key="idx" class="w-20 h-12 rounded-md overflow-hidden flex-shrink-0 cursor-pointer" :class="idx === index ? 'ring-2 ring-blue-500' : 'ring-0'" @click="setIndex(idx)">
+									<div v-for="(thumb, idx) in images" :key="idx" class="w-20 h-12 rounded-md overflow-hidden shrink-0 cursor-pointer" :class="idx === index ? 'ring-2 ring-blue-500' : 'ring-0'" @click="setIndex(idx)">
 										<img :src="thumb" class="w-full h-full object-cover" />
 									</div>
 								</div>
