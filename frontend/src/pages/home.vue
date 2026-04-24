@@ -9,6 +9,7 @@
 
         <button
           type="button"
+          @click="$router.push('/post-ad')"
           class="mt-7 inline-flex items-center gap-3 rounded-2xl bg-white px-6 py-3 text-2xl font-medium text-blue-500 shadow-sm transition hover:bg-blue-50"
         >
           <i class="pi pi-plus-circle text-3xl"></i>

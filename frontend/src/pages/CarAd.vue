@@ -40,6 +40,8 @@
 							<div>
 								<div class="text-base font-semibold">{{ car.make }} {{ car.model }}</div>
 
+								<div class="mt-1 text-sm text-gray-400">{{ car.headline }}</div>
+
 								<div class="mt-2 flex items-center gap-3">
 									<div class="text-2xl font-bold">${{ car.price }}</div>
 									<div class="flex items-center gap-2 text-sm text-gray-400">
@@ -52,7 +54,7 @@
 									</div>
 								</div>
 
-								<div class="mt-1 text-sm text-gray-400">{{ car.year }} • {{ car.category }}</div>
+								
 							</div>
 
 							<!-- financing -->
@@ -302,7 +304,14 @@ export default {
 		const images = [
 			'https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1200&q=80',
 			'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1200&q=80'
+			'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1200&q=80',
+			'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1200&q=80',
+			'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
+			'https://images.unsplash.com/photo-1493238792000-8113da705763?auto=format&fit=crop&w=1200&q=80',
+			'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=1200&q=80',
+			'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=1200&q=80',
+			'https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=1200&q=80',
+			'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=80'
 		]
 		const index = ref(0)
 		const currentImage = computed(() => images[index.value])
@@ -316,7 +325,8 @@ export default {
 			year: 2023,
 			make: 'Volkswagen',
 			model: 'ID.3 Pro',
-			category: 'InStock',
+			category: 'electric',
+			headline: 'NAVI/LED/360°/CLIMA/KEYLESS',
 			description: `This vehicle offers a dual-motor all-wheel drive system, giving you incredible control in all weather conditions. It features a minimalist interior with a 15-inch touchscreen, premium audio system, and a tinted glass roof.
 
 This particular example has been meticulously cared for and maintained by a single private owner since new. The battery health has been regularly checked and the car has only seen premium servicing at authorized centers. Mechanically, it performs like new — delivering smooth, immediate torque from the electric motors and a refined ride that balances comfort with engaging dynamics. The adaptive suspension and regenerative braking are tuned for responsive handling and efficient energy recovery.

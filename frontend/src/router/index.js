@@ -5,14 +5,16 @@ import SignupPage from '../pages/Signup.vue'
 import CarAdPage from '../pages/CarAd.vue'
 import SearchResult from '../pages/SearchResult.vue'
 import ProfilePage from '../pages/ProfilePage.vue'
+import PostAdPage from '../pages/PostAd.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: HomePage },
   { path: '/search', name: 'Search', component: SearchResult },
-  { path: '/login', name: 'Login', component: LoginPage }
-  ,{ path: '/signup', name: 'Signup', component: SignupPage }
-  ,{ path: '/car', name: 'CarAd', component: CarAdPage }
-  ,{ path: '/profile', name: 'Profile', component: ProfilePage }
+  { path: '/login', name: 'Login', component: LoginPage },
+  { path: '/signup', name: 'Signup', component: SignupPage },
+  { path: '/car', name: 'CarAd', component: CarAdPage },
+  { path: '/profile', name: 'Profile', component: ProfilePage },
+  { path: '/post-ad', name: 'PostAd', component: PostAdPage }
 ]
 
 const router = createRouter({
