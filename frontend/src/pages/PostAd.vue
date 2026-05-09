@@ -1573,8 +1573,60 @@
 
 	function saveAd() {
 		if (!allComplete.value) return
-		const payload = { vehicle: { ...vehicle }, equipment: { ...equipment }, details: { ...details }, contact: { ...contact } }
-		console.log('Ad saved (payload):', payload)
-		alert('Ad saved (check console).')
+		// Serialize reactive objects into plain JSON
+		const plainVehicle = JSON.parse(JSON.stringify(vehicle))
+		const plainEquipment = JSON.parse(JSON.stringify(equipment))
+		const plainDetails = JSON.parse(JSON.stringify(details))
+		const plainContact = JSON.parse(JSON.stringify(contact))
+		// DO NOT send images in initial POST — extract files and upload after ad creation
+		const filesToUpload = (details.images || []).filter(i => i && i.file).map(i => i.file)
+		plainDetails.images = [] // send empty images array
+
+		const payload = { vehicle: plainVehicle, equipment: plainEquipment, details: plainDetails, contact: plainContact, images: [] }
+		console.log('Posting ad payload:', payload)
+
+		const token = localStorage.getItem('token')
+		if (!token) {
+			alert('You must be logged in to post an ad.')
+			return
+		}
+
+		fetch('http://localhost:4000/api/ads', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+			body: JSON.stringify(payload)
+		})
+			.then(async (res) => {
+				const data = await res.json().catch(() => ({}))
+				if (!res.ok) {
+					console.error('Save ad failed:', data)
+					throw new Error(data.message || 'Failed to save ad')
+				}
+				console.log('Ad created:', data.ad)
+				// upload image files to get persistent URLs
+				if (filesToUpload.length > 0) {
+					const form = new FormData()
+					for (const f of filesToUpload) form.append('images', f)
+					const uploadRes = await fetch(`http://localhost:4000/api/ads/${data.ad._id}/images`, {
+						method: 'POST',
+						headers: { 'Authorization': 'Bearer ' + token },
+						body: form
+					})
+					const uploadData = await uploadRes.json().catch(() => ({}))
+					if (!uploadRes.ok) {
+						console.error('Image upload failed', uploadData)
+						throw new Error(uploadData.message || 'Failed to upload images')
+					}
+					console.log('Images uploaded:', uploadData.urls)
+					alert('Ad created and images uploaded successfully')
+				} else {
+					alert('Ad created successfully')
+				}
+				window.location.href = '/' // redirect to home
+			})
+			.catch((err) => {
+				console.error(err)
+				alert(err.message || 'Error saving ad')
+			})
 	}
 </script>

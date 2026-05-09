@@ -8,6 +8,10 @@ dotenv.config()
 const app = express()
 app.use(cors())
 app.use(express.json())
+const path = require('path')
+
+// serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 const MONGO_URI = process.env.MONGO_URI
 const PORT = process.env.PORT || 4000
@@ -28,6 +32,8 @@ async function start() {
   // Routes
   const authRouter = require('./routes/auth')
   app.use('/api/auth', authRouter)
+  const adsRouter = require('./routes/ads')
+  app.use('/api/ads', adsRouter)
 
   app.get('/', (req, res) => res.json({ ok: true }))
 

@@ -12,7 +12,7 @@ const routes = [
   { path: '/search', name: 'Search', component: SearchResult },
   { path: '/login', name: 'Login', component: LoginPage },
   { path: '/signup', name: 'Signup', component: SignupPage },
-  { path: '/car', name: 'CarAd', component: CarAdPage },
+  { path: '/car/:id', name: 'CarAd', component: CarAdPage },
   { path: '/profile', name: 'Profile', component: ProfilePage },
   { path: '/post-ad', name: 'PostAd', component: PostAdPage }
 ]

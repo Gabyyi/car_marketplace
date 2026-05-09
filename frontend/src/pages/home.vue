@@ -9,7 +9,7 @@
 
         <button
           type="button"
-          @click="$router.push('/post-ad')"
+          @click="handleSell"
           class="mt-7 inline-flex items-center gap-3 rounded-2xl bg-white px-6 py-3 text-2xl font-medium text-blue-500 shadow-sm transition hover:bg-blue-50"
         >
           <i class="pi pi-plus-circle text-3xl"></i>
@@ -159,6 +159,7 @@
 
 <script>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import MainCarAdCard from '../components/MainCarAdCard.vue'
 import SwipeCar from '../components/SwipeCar.vue'
 import { useTheme } from '../composables/useTheme'
@@ -167,6 +168,7 @@ export default {
   name: 'HomePage',
   components: { MainCarAdCard, SwipeCar },
   setup() {
+    const router = useRouter()
     const swipeContainer = ref(null)
     const { theme } = useTheme()
 
@@ -188,6 +190,15 @@ export default {
       swipeContainer.value.scrollBy({ left: -swipeContainer.value.clientWidth * 0.7, behavior: 'smooth' })
     }
 
+    function handleSell() {
+      const token = localStorage.getItem('token')
+      if (token) {
+        router.push({ name: 'PostAd' })
+      } else {
+        router.push({ name: 'Login' })
+      }
+    }
+
     const searchCardClass = computed(() => ['rounded-3xl', 'p-5', 'shadow-sm', 'sm:p-6', 'md:p-8', theme.value === 'dark' ? 'border border-gray-700 bg-gray-900' : 'border border-gray-200 bg-white'].join(' '))
     const searchTitleClass = computed(() => ['text-xl', 'font-medium', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
     const topDealsTitleClass = computed(() => ['text-3xl', 'font-medium', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
@@ -195,7 +206,7 @@ export default {
     const labelClass = computed(() => ['mb-2', 'block', 'text-sm', 'font-medium', theme.value === 'dark' ? 'text-gray-300' : 'text-gray-700'].join(' '))
     const formSelectClass = computed(() => ['w-full', 'rounded-lg', 'border', 'px-3', 'py-2', 'text-sm', 'focus:border-blue-500', 'focus:outline-none', theme.value === 'dark' ? 'border-gray-600 bg-gray-800 text-gray-200' : 'border-gray-300 bg-white text-gray-700'].join(' '))
 
-    return { swipeContainer, swipeCars, scrollNext, scrollPrev, searchCardClass, searchTitleClass, topDealsTitleClass, arrowBtnClass, labelClass, formSelectClass }
+    return { swipeContainer, swipeCars, scrollNext, scrollPrev, searchCardClass, searchTitleClass, topDealsTitleClass, arrowBtnClass, labelClass, formSelectClass, handleSell }
   }
 }
 </script>

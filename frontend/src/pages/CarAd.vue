@@ -66,14 +66,14 @@
 
 							<!-- seller/company -->
 							<div>
-								<div class="text-sm text-gray-400">Automobile Jersch <span class="text-yellow-400">★★★★★</span></div>
-								<div class="mt-1 text-sm text-gray-400">DE-44269 Dortmund</div>
+								<div class="text-sm text-gray-400">{{ seller.name }}</div>
+								<div class="mt-1 text-sm text-gray-400">{{ sellerShortAddress }}</div>
 							</div>
 
 							<!-- phone -->
-							<div class="flex items-center justify-between">
-								<div class="text-sm text-gray-400">Phone: <span class="font-medium">+49 (0) ...</span></div>
-								<button class="text-sm text-blue-500">Show</button>
+							<div class="flex items-center justify-between flex-nowrap gap-2">
+								<div class="text-sm text-gray-400 whitespace-nowrap">Phone: <span class="font-medium inline-block">{{ phoneDisplay }}</span></div>
+								<button @click.prevent="togglePhone" class="text-sm text-blue-500 flex-shrink-0">{{ phoneRevealed ? 'Hide' : 'Show' }}</button>
 							</div>
 
 							<!-- CTA buttons -->
@@ -109,7 +109,7 @@
 							<div class="flex items-center gap-3" md:class="md:col-start-1 md:row-start-1">
 								<i class="pi pi-map text-lg"></i>
 								<div>
-									<div class="font-medium">42,000 km</div>
+									<div class="font-medium">{{ car.mileage || '—' }} km</div>
 									<div class="text-xs text-gray-400">Mileage</div>
 								</div>
 							</div>
@@ -118,7 +118,7 @@
 							<div class="flex items-center gap-3" md:class="md:col-start-1 md:row-start-2">
 								<i class="pi pi-cog text-lg"></i>
 								<div>
-									<div class="font-medium">Automatic</div>
+									<div class="font-medium">{{ car.transmission || '—' }}</div>
 									<div class="text-xs text-gray-400">Transmission</div>
 								</div>
 							</div>
@@ -127,7 +127,7 @@
 							<div class="flex items-center gap-3" md:class="md:col-start-2 md:row-start-1">
 								<i class="pi pi-bolt text-lg"></i>
 								<div>
-									<div class="font-medium">450 hp</div>
+									<div class="font-medium">{{ car.stats?.power || car.specs?.power || '—' }}</div>
 									<div class="text-xs text-gray-400">Power</div>
 								</div>
 							</div>
@@ -136,7 +136,7 @@
 							<div class="flex items-center gap-3" md:class="md:col-start-2 md:row-start-2">
 								<i class="pi pi-calendar text-lg"></i>
 								<div>
-									<div class="font-medium">03/2023</div>
+									<div class="font-medium">{{ car.year || '—' }}</div>
 									<div class="text-xs text-gray-400">First registration</div>
 								</div>
 							</div>
@@ -145,7 +145,7 @@
 							<div class="flex items-center gap-3" md:class="md:col-start-3 md:row-start-1">
 								<i class="pi pi-shop text-lg"></i>
 								<div>
-									<div class="font-medium">Electric</div>
+									<div class="font-medium">{{ car.fuel || '—' }}</div>
 									<div class="text-xs text-gray-400">Fuel</div>
 								</div>
 							</div>
@@ -154,7 +154,7 @@
 							<div class="flex items-center gap-3" md:class="md:col-start-3 md:row-start-2">
 								<i class="pi pi-users text-lg"></i>
 								<div>
-									<div class="font-medium">1 owner</div>
+									<div class="font-medium">{{ car.owners || '—' }}</div>
 									<div class="text-xs text-gray-400">Previous owners</div>
 								</div>
 							</div>
@@ -239,10 +239,6 @@
 										<div class="font-medium text-base">{{ seller.name }}</div>
 										<div class="text-sm text-gray-400">{{ seller.location }}</div>
 									</div>
-									<div class="text-right">
-										<div class="text-sm font-semibold text-yellow-400">★ {{ seller.rating }}</div>
-										<div class="text-xs text-gray-400">({{ seller.reviewsCount }} reviews)</div>
-									</div>
 								</div>
 
 								<div class="mt-3 text-sm text-gray-500">
@@ -290,7 +286,7 @@
 
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
 import SwipeCar from '../components/SwipeCar.vue'
 
@@ -301,61 +297,142 @@ export default {
 		const { theme } = useTheme()
 		const router = useRouter()
 
-		const images = [
-			'https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1493238792000-8113da705763?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=1200&q=80',
-			'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=80'
-		]
-		const index = ref(0)
-		const currentImage = computed(() => images[index.value])
+		const route = useRoute()
+		const id = route.params.id || route.query.id
 
-		function next() { index.value = (index.value + 1) % images.length }
-		function prev() { index.value = (index.value - 1 + images.length) % images.length }
+		const images = ref([])
+		const index = ref(0)
+		const currentImage = computed(() => images.value.length ? images.value[index.value] : '')
+
+		function next() { if (!images.value.length) return; index.value = (index.value + 1) % images.value.length }
+		function prev() { if (!images.value.length) return; index.value = (index.value - 1 + images.value.length) % images.value.length }
 		function setIndex(i) { index.value = i }
 
-		const car = {
-			price: '42,990',
-			year: 2023,
-			make: 'Volkswagen',
-			model: 'ID.3 Pro',
-			category: 'electric',
-			headline: 'NAVI/LED/360°/CLIMA/KEYLESS',
-			description: `This vehicle offers a dual-motor all-wheel drive system, giving you incredible control in all weather conditions. It features a minimalist interior with a 15-inch touchscreen, premium audio system, and a tinted glass roof.
+		const car = ref({ price: '', year: '', make: '', model: '', category: '', headline: '', description: '', options: [], stats: {}, specs: {} })
 
-This particular example has been meticulously cared for and maintained by a single private owner since new. The battery health has been regularly checked and the car has only seen premium servicing at authorized centers. Mechanically, it performs like new — delivering smooth, immediate torque from the electric motors and a refined ride that balances comfort with engaging dynamics. The adaptive suspension and regenerative braking are tuned for responsive handling and efficient energy recovery.
+		// additional mapped fields
+		car.value.mileage = ''
+		car.value.transmission = ''
+		car.value.fuel = ''
+		car.value.owners = ''
 
-Inside, the cabin is spacious and thoughtfully appointed. Soft-touch surfaces, premium upholstery, and an ergonomic driver’s position make long journeys comfortable. The large central display provides intuitive access to navigation, vehicle settings, and multimedia, while Apple CarPlay and Android Auto keep your phone seamlessly integrated. Ambient lighting, dual-zone climate control, and heated front seats add to the overall refinement.
+		const seller = ref({ name: '', avatar: '', location: '', city: '', zip: '', country: '', countryAbbrev: '', since: '', carsSold: 0, rating: 0, reviewsCount: 0, phone: '', website: '', address: '', openingHours: '' })
 
-Safety is comprehensive: multiple airbags, stability control, lane-keeping assist, automated emergency braking, and adaptive cruise control are all included. Parking is made easy with front and rear sensors plus a camera system with multiple viewing angles. The car also benefits from over-the-air updates that keep the software current and unlock improvements over time.
-
-The exterior finish shows minimal signs of wear — a few light micro-scratches consistent with careful urban and highway use, but no structural damage or accidents. Cosmetic details such as the alloy wheels and LED headlights are in excellent condition. Recent consumables (wipers, cabin filter) have been replaced, and the car comes with the original documentation, two keys, and a complete service history.
-
-This vehicle is ideal for buyers who want a technologically advanced, efficient, and practical daily driver without compromising on performance. Whether you commute, take long weekend trips, or want a reliable family car, this model delivers an impressive blend of range, comfort, and modern features. If you'd like, we can arrange a full inspection, a test drive, and provide additional photographs upon request.`,
-			options: ['Electric', 'All-Wheel Drive', 'InStock', 'Heated Seats', 'Autopilot'],
-			stats: { accel: '3.1s', range: '315 mi', power: '450 hp' },
-			specs: { engine: 'N/A (Electric)', power: '450 hp / 335 kW', torque: '639 Nm', consumption: '15.0 kWh/100km' }
+		// small mapping for common calling codes -> ISO2 abbreviations
+		function mapPhoneToIso(code) {
+			if (!code) return ''
+			const c = String(code).trim()
+			const table = { '+49': 'DE', '49': 'DE', '+1': 'US', '1': 'US', '+44': 'GB', '44': 'GB', '+33': 'FR', '33': 'FR', '+34': 'ES', '34': 'ES', '+39': 'IT', '39': 'IT' }
+			// try full token
+			if (table[c]) return table[c]
+			// try extract leading +NN or NN
+			const m = c.match(/\+?\d{1,3}/)
+			if (m && table[m[0]]) return table[m[0]]
+			return ''
 		}
 
-			const seller = {
-				name: 'Alex Thompson',
-				avatar: 'https://i.pravatar.cc/100?img=12',
-				location: 'Palo Alto, CA',
-				since: 2015,
-				carsSold: 240,
-				rating: 4.8,
-				reviewsCount: 124,
-				phone: '+1-650-555-0123',
-				website: 'https://automobile-jersch.example.com',
-				address: '123 Main St, Palo Alto, CA',
-				openingHours: 'Mon-Fri 09:00–18:00'
+		async function loadAd() {
+			if (!id) return
+			try {
+				const res = await fetch(`http://localhost:4000/api/ads/${id}`)
+				const data = await res.json()
+				if (!res.ok) throw new Error(data.message || 'Failed to load ad')
+				const ad = data.ad
+				// map fields
+				images.value = (ad.details && ad.details.images && ad.details.images.length) ? ad.details.images : (ad.images || [])
+				car.value.price = ad.details && ad.details.price ? ad.details.price : (ad.vehicle && ad.vehicle.price ? ad.vehicle.price : '')
+				car.value.year = ad.vehicle && (ad.vehicle.regYear || ad.vehicle.year) ? (ad.vehicle.regYear || ad.vehicle.year) : ''
+				car.value.make = ad.vehicle?.make || ''
+				car.value.model = ad.vehicle?.model || ''
+				car.value.category = ad.vehicle?.category || ''
+				car.value.headline = ad.details?.title || ''
+				car.value.description = ad.details?.description || ''
+				car.value.options = ad.equipment?.options || []
+				car.value.stats = { power: ad.vehicle?.motorPower ? String(ad.vehicle.motorPower) + ' ' + (ad.vehicle.motorPowerUnit || '') : '' }
+				car.value.specs = { engine: ad.vehicle?.cubicCapacity || '', power: ad.vehicle?.motorPower ? String(ad.vehicle.motorPower) : '' }
+
+				// map additional vehicle fields for display
+				car.value.mileage = ad.vehicle?.mileage || ad.details?.mileage || ''
+				car.value.transmission = ad.vehicle?.transmission || ''
+				car.value.fuel = ad.vehicle?.fuel || ''
+				car.value.owners = ad.vehicle?.owners || ''
+				car.value.driveType = ad.vehicle?.driveType || ''
+
+				// map remaining vehicle fields so template reads them directly
+				car.value.cubicCapacity = ad.vehicle?.cubicCapacity || ''
+				car.value.motorPower = ad.vehicle?.motorPower || ''
+				car.value.motorPowerUnit = ad.vehicle?.motorPowerUnit || ''
+				car.value.paddleShifters = typeof ad.vehicle?.paddleShifters !== 'undefined' ? ad.vehicle.paddleShifters : ad.vehicle?.paddleShifters === true
+				car.value.particulateFilter = typeof ad.vehicle?.particulateFilter !== 'undefined' ? ad.vehicle.particulateFilter : ad.vehicle?.particulateFilter === true
+				car.value.startStop = typeof ad.vehicle?.startStop !== 'undefined' ? ad.vehicle.startStop : ad.vehicle?.startStop === true
+				car.value.emissionClass = ad.vehicle?.emissionClass || ad.vehicle?.emission || ''
+				car.value.emissionSticker = ad.vehicle?.emissionSticker || ''
+				car.value.fuelConsumptionComb = ad.vehicle?.fuelConsumptionComb || ad.vehicle?.fuelConsumptionComb || ''
+				car.value.fuelConsumptionUrban = ad.vehicle?.fuelConsumptionUrban || ''
+				car.value.fuelConsumptionExtraUrban = ad.vehicle?.fuelConsumptionExtraUrban || ''
+				car.value.co2Combined = ad.vehicle?.co2Combined || ''
+				car.value.subcategory = ad.vehicle?.subcategory || ''
+				car.value.damaged = ad.vehicle?.damaged || ''
+				car.value.accidentDamaged = ad.vehicle?.accidentDamaged || ''
+				car.value.roadworthy = ad.vehicle?.roadworthy || ''
+				car.value.nonSmoking = typeof ad.vehicle?.nonSmoking !== 'undefined' ? ad.vehicle.nonSmoking : ad.vehicle?.nonSmoking === true
+				car.value.inspectionMonth = ad.vehicle?.inspectionMonth || ''
+				car.value.inspectionYear = ad.vehicle?.inspectionYear || ''
+				car.value.inspectionDate = ad.vehicle?.inspectionDate || ''
+				car.value.fullServiceHistory = typeof ad.vehicle?.fullServiceHistory !== 'undefined' ? ad.vehicle.fullServiceHistory : ad.vehicle?.fullServiceHistory === true
+				car.value.warranty = typeof ad.vehicle?.warranty !== 'undefined' ? ad.vehicle.warranty : ad.vehicle?.warranty === true
+				car.value.conditionNotes = ad.vehicle?.conditionNotes || ad.details?.conditionNotes || ''
+				car.value.doors = ad.vehicle?.doors || ''
+				car.value.seats = ad.vehicle?.seats || ''
+				car.value.regMonth = ad.vehicle?.regMonth || ''
+				car.value.regYear = ad.vehicle?.regYear || ''
+
+				// build features list from equipment
+				const eq = ad.equipment || {}
+				const featuresList = []
+				if (Array.isArray(car.value.options)) featuresList.push(...car.value.options)
+				// common arrays
+				if (Array.isArray(eq.safetyFeatures)) featuresList.push(...eq.safetyFeatures)
+				if (Array.isArray(eq.infotainmentFeatures)) featuresList.push(...eq.infotainmentFeatures)
+				if (Array.isArray(eq.extrasFeatures)) featuresList.push(...eq.extrasFeatures)
+				if (Array.isArray(eq.heatedSeats)) featuresList.push(...eq.heatedSeats)
+				if (Array.isArray(eq.tires)) featuresList.push(...eq.tires)
+				// boolean flags
+				if (eq.fullServiceHistory) featuresList.push('Full Service History')
+				if (eq.warranty) featuresList.push('Warranty')
+				if (eq.tirePressureMonitoring) featuresList.push('TPMS')
+				if (eq.trailerCoupling) featuresList.push('Trailer coupling')
+				if (eq.keylessCentralLocking) featuresList.push('Keyless central locking')
+				if (eq.ambientLighting) featuresList.push('Ambient lighting')
+				if (eq.electricWindows) featuresList.push('Electric windows')
+
+				// set seller info from owner/contact
+				if (ad.owner || ad.contact) {
+					seller.value.name = ad.owner?.username || [ad.contact?.firstName, ad.contact?.lastName].filter(Boolean).join(' ') || 'Seller'
+					seller.value.phone = [ad.contact?.countryCode, ad.contact?.phone].filter(Boolean).join(' ') || ad.contact?.phone || ''
+					// break out address parts for short formatted address
+					seller.value.city = ad.contact?.city || ''
+					seller.value.zip = ad.contact?.zip || ad.contact?.postal || ''
+					seller.value.country = ad.contact?.country || ''
+					// prefer an explicit abbrev if available, otherwise map from calling code
+					seller.value.countryAbbrev = ad.contact?.countryCodeAlpha2 || mapPhoneToIso(ad.contact?.countryCode) || mapPhoneToIso(ad.contact?.phone)
+					seller.value.location = [seller.value.city, seller.value.country].filter(Boolean).join(', ')
+
+					const addressParts = [
+						[ad.contact?.street, ad.contact?.number].filter(Boolean).join(' '),
+						ad.contact?.zip,
+						seller.value.city,
+						seller.value.country
+					].filter(Boolean)
+					seller.value.address = addressParts.join(', ')
+				}
+
+				// expose features to template via ref
+				featuresFromAd.value = featuresList
+			} catch (err) {
+				console.error('Load ad error', err)
 			}
+		}
 
 			// fallback JS sticky if CSS sticky doesn't behave (some ancestors can prevent sticky)
 			const sellerRef = ref(null)
@@ -433,7 +510,7 @@ This vehicle is ideal for buyers who want a technologically advanced, efficient,
 			function scrollSimilarRight() { if (similarRef.value) scrollSimilarBy(Math.round(similarRef.value.clientWidth * 0.7)) }
 
 			// Description show-more handling
-			const description = computed(() => car.description)
+			const description = computed(() => car.value.description || '')
 			const descriptionVisibleCount = 600
 			const descriptionShowMore = ref(false)
 			const visibleDescription = computed(() => descriptionShowMore.value ? description.value : description.value.slice(0, descriptionVisibleCount))
@@ -451,16 +528,37 @@ This vehicle is ideal for buyers who want a technologically advanced, efficient,
 		const descriptionCardClass = computed(() => (theme.value === 'dark' ? 'bg-gray-800 p-4 rounded-lg border border-gray-700' : 'bg-white p-4 rounded-lg border border-gray-200'))
 
 		const technical = computed(() => ([
-			{ label: 'Vehicle condition', value: 'Used vehicle, Accident-free' },
-			{ label: 'Category', value: car.category || 'Saloon' },
-			{ label: 'Model range', value: 'E11/E12' },
-			{ label: 'Trim line', value: 'Pure 125 kW Goal' },
-			{ label: 'Origin', value: 'German edition' },
-			{ label: 'Mileage', value: '42,000 km' },
-			{ label: 'Power', value: car.stats?.power || car.specs?.power || '—' },
-			{ label: 'Transmission', value: 'Automatic' },
-			{ label: 'First registration', value: '03/2023' },
-			{ label: 'Previous owners', value: '1 owner' }
+			{ label: 'Make', value: car.value.make || '—' },
+			{ label: 'Model', value: car.value.model || '—' },
+			{ label: 'Year', value: car.value.year || '—' },
+			{ label: 'Registration', value: (car.value.regMonth && car.value.regYear) ? `${car.value.regMonth} ${car.value.regYear}` : (car.value.regYear || '—') },
+			{ label: 'Mileage', value: car.value.mileage ? `${car.value.mileage} km` : '—' },
+			{ label: 'Engine / Capacity', value: car.value.cubicCapacity || car.value.specs?.engine || '—' },
+			{ label: 'Power', value: car.value.motorPower ? `${car.value.motorPower}${car.value.motorPowerUnit ? ' ' + car.value.motorPowerUnit : ''}` : ((car.value.stats && car.value.stats.power) || (car.value.specs && car.value.specs.power) || '—') },
+			{ label: 'Fuel', value: car.value.fuel || '—' },
+			{ label: 'Transmission', value: car.value.transmission || '—' },
+			{ label: 'Drive type', value: car.value.driveType || '—' },
+			{ label: 'Doors', value: car.value.doors || '—' },
+			{ label: 'Seats', value: car.value.seats ? String(car.value.seats) : '—' },
+			{ label: 'Emission class', value: car.value.emissionClass || car.value.emission || '—' },
+			{ label: 'CO₂ combined', value: car.value.co2Combined ? `${car.value.co2Combined} g/km` : '—' },
+			{ label: 'Fuel consumption (combined)', value: car.value.fuelConsumptionComb ? `${car.value.fuelConsumptionComb} l/100km` : '—' },
+			{ label: 'Fuel consumption (urban)', value: car.value.fuelConsumptionUrban ? `${car.value.fuelConsumptionUrban} l/100km` : '—' },
+			{ label: 'Fuel consumption (extra-urban)', value: car.value.fuelConsumptionExtraUrban ? `${car.value.fuelConsumptionExtraUrban} l/100km` : '—' },
+			{ label: 'Start/Stop', value: typeof car.value.startStop === 'boolean' ? (car.value.startStop ? 'Yes' : 'No') : (car.value.startStop || '—') },
+			{ label: 'Paddle shifters', value: typeof car.value.paddleShifters === 'boolean' ? (car.value.paddleShifters ? 'Yes' : 'No') : (car.value.paddleShifters || '—') },
+			{ label: 'Particulate filter', value: typeof car.value.particulateFilter === 'boolean' ? (car.value.particulateFilter ? 'Yes' : 'No') : (car.value.particulateFilter || '—') },
+			{ label: 'Inspection', value: (car.value.inspectionMonth && car.value.inspectionYear) ? `${car.value.inspectionMonth} ${car.value.inspectionYear}` : (car.value.inspectionYear || car.value.inspectionDate || '—') },
+			{ label: 'Roadworthy', value: car.value.roadworthy || '—' },
+			{ label: 'Condition notes', value: car.value.conditionNotes || '—' },
+			{ label: 'Owners', value: car.value.owners || '—' },
+			{ label: 'Damaged', value: car.value.damaged || '—' },
+			{ label: 'Accident damaged', value: car.value.accidentDamaged || '—' },
+			{ label: 'Full service history', value: typeof car.value.fullServiceHistory === 'boolean' ? (car.value.fullServiceHistory ? 'Yes' : 'No') : (car.value.fullServiceHistory || '—') },
+			{ label: 'Warranty', value: typeof car.value.warranty === 'boolean' ? (car.value.warranty ? 'Yes' : 'No') : (car.value.warranty || '—') },
+			{ label: 'Non-smoking', value: typeof car.value.nonSmoking === 'boolean' ? (car.value.nonSmoking ? 'Yes' : 'No') : (car.value.nonSmoking || '—') },
+			{ label: 'Subcategory', value: car.value.subcategory || '—' },
+			{ label: 'Category', value: car.value.category || '—' }
 		]))
 
 		function rowBg(i) {
@@ -468,6 +566,19 @@ This vehicle is ideal for buyers who want a technologically advanced, efficient,
 			return ''
 		}
 
+		const featuresFromAd = ref([])
+
+		// load ad when component mounts
+		onMounted(() => {
+			updateSellerMeasurements()
+			loadAd()
+			window.addEventListener('resize', updateSellerMeasurements)
+			window.addEventListener('scroll', onScroll)
+		})
+		onUnmounted(() => {
+			window.removeEventListener('resize', updateSellerMeasurements)
+			window.removeEventListener('scroll', onScroll)
+		})
 		// track whether viewport is md or larger (matches Tailwind 'md' breakpoint)
 		const isMdOrUp = ref(false)
 
@@ -500,20 +611,7 @@ This vehicle is ideal for buyers who want a technologically advanced, efficient,
 		function toggleShowMore() { showMore.value = !showMore.value }
 
 		// Features card data 
-    const features = computed(() => ([
-			{ label: 'ABS' }, 
-      { label: 'Adaptive lighting' }, 
-      { label: 'Alloy wheels' }, 
-      { label: 'Apple CarPlay' }, 
-      { label: 'Autom. dimming interior mirror' }, 
-      { label: 'Central locking' },
-			{ label: 'Adaptive Cruise Control' }, 
-      { label: 'Alarm system' }, 
-      { label: 'Android Auto' }, 
-      { label: 'Arm rest' }, 
-      { label: 'Bluetooth' }, 
-      { label: 'DAB radio' }
-		]))
+	    const features = computed(() => (featuresFromAd.value.map(f => ({ label: f })) || []))
 
 		const featuresVisibleCount = 8
 		const featuresShowMore = ref(false)
@@ -527,12 +625,29 @@ This vehicle is ideal for buyers who want a technologically advanced, efficient,
     const sellerCardClass = computed(() => (theme.value === 'dark' ? 'bg-gray-800 p-4 rounded-lg border border-gray-700' : 'bg-white p-4 rounded-lg border border-gray-200'))
 		const navButtonClass = computed(() => theme.value === 'dark' ? 'bg-gray-700/80 text-gray-100 hover:bg-gray-700/90 border border-gray-600' : 'bg-white/90 text-gray-900 hover:bg-white/100 border border-gray-100')
 
+			// phone reveal handling: initially hidden
+			const phoneRevealed = ref(false)
+			const phoneDisplay = computed(() => {
+				const p = seller.value.phone || ''
+				if (!p) return '—'
+				if (phoneRevealed.value) return p
+				return '*'.repeat(p.length)
+			})
+
+			function togglePhone() { phoneRevealed.value = !phoneRevealed.value }
+
+			const sellerShortAddress = computed(() => {
+				if (seller.value.countryAbbrev && seller.value.zip && seller.value.city) return `${seller.value.countryAbbrev}-${seller.value.zip} ${seller.value.city}`
+				if (seller.value.zip && seller.value.city) return `${seller.value.zip} ${seller.value.city}`
+				return seller.value.location || seller.value.address || ''
+			})
+
 		function goBack() {
 			if (window.history.length > 1) router.back()
 			else router.push({ name: 'Home' })
 		}
 
-			return { images, index, currentImage, next, prev, setIndex, car, seller, theme, containerClass, cardClass, priceClass, titleClass, statClass, specCardClass, techCardClass, featuresCardClass, descriptionCardClass, technical, visibleTechnical, visibleCount, showMore, showMoreClass, toggleShowMore, features, featuresVisibleCount, featuresShowMore, visibleFeatures, featuresItemClass, featuresCheckClass, featuresToggleClass, toggleFeaturesShowMore, sellerCardClass, navButtonClass, rowBg, featuresRowBg, sellerRef, sellerStyle, description, descriptionVisibleCount, descriptionShowMore, visibleDescription, descriptionToggleClass, toggleDescriptionShowMore, similarRef, similarSectionRef, similarCars, scrollSimilarLeft, scrollSimilarRight, goBack }
+				return { images, index, currentImage, next, prev, setIndex, car, seller, theme, containerClass, cardClass, priceClass, titleClass, statClass, specCardClass, techCardClass, featuresCardClass, descriptionCardClass, technical, visibleTechnical, visibleCount, showMore, showMoreClass, toggleShowMore, features, featuresVisibleCount, featuresShowMore, visibleFeatures, featuresItemClass, featuresCheckClass, featuresToggleClass, toggleFeaturesShowMore, sellerCardClass, navButtonClass, rowBg, featuresRowBg, sellerRef, sellerStyle, description, descriptionVisibleCount, descriptionShowMore, visibleDescription, descriptionToggleClass, toggleDescriptionShowMore, similarRef, similarSectionRef, similarCars, scrollSimilarLeft, scrollSimilarRight, goBack, phoneRevealed, phoneDisplay, togglePhone, sellerShortAddress }
 	}
 }
 </script>
