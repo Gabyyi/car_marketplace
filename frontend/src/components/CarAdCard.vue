@@ -128,7 +128,9 @@ const unfilledBarClass = computed(() => theme.value === 'dark' ? 'bg-gray-700' :
 
 const router = useRouter()
 function openCar() {
-	router.push({ name: 'CarAd' })
+	const adId = props.ad && (props.ad.id || props.ad._id)
+	if (adId) router.push({ name: 'CarAd', params: { id: adId } })
+	else router.push({ name: 'CarAd' })
 }
 </script>
 

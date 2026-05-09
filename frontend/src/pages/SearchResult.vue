@@ -127,7 +127,21 @@
 						</div>
 
 						<div class="space-y-4">
-							<CarAdCard v-for="(ad, idx) in filteredAds" :key="idx" :ad="ad" />
+							<CarAdCard v-for="(ad, idx) in displayedAds" :key="ad.id || idx" :ad="ad" />
+						</div>
+
+						<div class="mt-6 flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between" :class="paginationCardClass">
+							<div class="text-sm" :class="theme.value === 'dark' ? 'text-gray-300' : 'text-gray-600'">
+								Page {{ currentPage }} of {{ totalPages }} · {{ totalAds }} cars
+							</div>
+							<div class="flex items-center gap-2">
+								<button type="button" @click="prevPage" :disabled="!canPrev" :class="paginationBtnClass + ' disabled:opacity-40 disabled:cursor-not-allowed'">
+									Previous
+								</button>
+								<button type="button" @click="nextPage" :disabled="!canNext" :class="paginationBtnClass + ' disabled:opacity-40 disabled:cursor-not-allowed'">
+									Next
+								</button>
+							</div>
 						</div>
 					</div>
 				</main>
@@ -137,9 +151,11 @@
 </template>
 
 <script setup>
-import { reactive, computed, ref } from 'vue'
+import { reactive, computed, ref, onMounted, watch } from 'vue'
 import CarAdCard from '../components/CarAdCard.vue'
 import { useTheme } from '../composables/useTheme'
+
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
 const { theme } = useTheme()
 
@@ -187,30 +203,57 @@ const sidebarCardClasses = computed(() => [
 
 const sidebarTitleClass = computed(() => ['text-lg', 'font-semibold', 'mb-3', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
 
-const ads = [
-	// small sample list; real app should fetch from API/store
-	{}, {}, {}, {}, {}
-].map((_, i) => ({
-	title: `Volkswagen ID.3 — Offer ${i + 1}`,
-	subtitle: 'Pro FACELIFT 62kW ACC',
-	price: 22990 + i * 1000,
-	priceScore: 4,
-	condition: i % 2 === 0 ? 'Accident-free' : 'Repaired accident damage',
-	registration: 'FR 02/2024',
-	km: 20000 + i * 5000,
-	power: 150,
-	hp: 204,
-	images: ['/src/assets/placeholder-main.jpg','/src/assets/placeholder-1.jpg','/src/assets/placeholder-2.jpg','/src/assets/placeholder-3.jpg'],
-	location: '83324 Ruhpolding',
-	sellerType: 'Dealer'
-}))
+const paginationCardClass = computed(() => theme.value === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white')
+const paginationBtnClass = computed(() => ['rounded-lg', 'px-4', 'py-2', 'text-sm', 'font-medium', 'transition', theme.value === 'dark' ? 'border border-gray-600 text-gray-200 hover:bg-gray-800' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'].join(' '))
+
+const ads = ref([])
+
+function resolveImageUrl(url) {
+	if (!url) return ''
+	if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url
+	if (url.startsWith('/uploads/')) return `${apiBaseUrl}${url}`
+	return url
+}
+
+function parseNumber(value) {
+	const numeric = Number(String(value ?? '').replace(/[^\d.]/g, ''))
+	return Number.isFinite(numeric) ? numeric : 0
+}
+
+function mapAdToCard(ad) {
+	const images = Array.isArray(ad?.details?.images) && ad.details.images.length ? ad.details.images : (ad?.images || [])
+	const price = ad?.details?.price ?? ad?.vehicle?.price ?? ''
+	const mileage = ad?.vehicle?.mileage ?? ''
+	const reg = [ad?.vehicle?.regMonth, ad?.vehicle?.regYear].filter(Boolean).join(' ') || ad?.vehicle?.regDate || ad?.vehicle?.year || ''
+	const power = ad?.vehicle?.motorPower ? `${ad.vehicle.motorPower}${ad?.vehicle?.motorPowerUnit ? ` ${ad.vehicle.motorPowerUnit}` : ''}` : ''
+	const priceValue = parseNumber(price)
+
+	return {
+		id: ad?._id || '',
+		images: images.map(resolveImageUrl),
+		make: ad?.vehicle?.make || 'Car',
+		model: ad?.vehicle?.model || 'Ad',
+		subtitle: ad?.details?.title || ad?.vehicle?.subcategory || ad?.vehicle?.category || '',
+		price: price ? String(price) : '0',
+		priceScore: priceValue >= 100000 ? 5 : priceValue >= 70000 ? 4 : 3,
+		valueRatingText: priceValue >= 100000 ? 'Premium deal' : priceValue >= 70000 ? 'Great value' : 'Good price',
+		negotiable: String(ad?.details?.priceType || '').toLowerCase() !== 'fixed price',
+		highlight: ad?.vehicle?.accidentDamaged || ad?.vehicle?.damaged || ad?.vehicle?.conditionNotes || ad?.details?.title || '',
+		registration: reg,
+		km: mileage ? `${new Intl.NumberFormat('en-US').format(parseNumber(mileage))}` : '',
+		power,
+		fuelType: ad?.vehicle?.fuel || '',
+		location: [ad?.contact?.zip, ad?.contact?.city, ad?.contact?.country].filter(Boolean).join(' '),
+		ad
+	}
+}
+
+const displayedAds = computed(() => ads.value.map(mapAdToCard))
 
 const makeOptions = computed(() => {
 	const set = new Set()
-	ads.forEach(a => {
-		const mm = (a.title || '').split('—')[0].trim()
-		const parts = mm.split(' ')
-		const make = parts[0] || ''
+	ads.value.forEach(a => {
+		const make = String(a?.vehicle?.make || '').trim()
 		if (make) set.add(make)
 	})
 	return Array.from(set)
@@ -218,11 +261,9 @@ const makeOptions = computed(() => {
 
 const modelOptions = computed(() => {
 	const set = new Set()
-	ads.forEach(a => {
-		const mm = (a.title || '').split('—')[0].trim()
-		const parts = mm.split(' ')
-		const make = parts[0] || ''
-		const model = parts.slice(1).join(' ') || ''
+	ads.value.forEach(a => {
+		const make = String(a?.vehicle?.make || '').trim()
+		const model = String(a?.vehicle?.model || '').trim()
 		if (!filters.make || make === filters.make) {
 			if (model) set.add(model)
 		}
@@ -244,15 +285,17 @@ const filters = reactive({
 })
 
 const sortOrder = ref('standard')
+const currentPage = ref(1)
+const pageSize = 25
+const totalAds = ref(0)
+const totalPages = ref(1)
+const loading = ref(false)
+const error = ref('')
 const mobileFiltersOpen = ref(false)
 
-const makeModel = computed(() => {
-	const sample = ads[0] && ads[0].title ? ads[0].title : ''
-	const parts = sample.split('—')
-	return (parts[0] || 'Listings').trim()
-})
+const makeModel = computed(() => 'cars')
 
-const headerText = computed(() => `${filteredAds.value.length} ${makeModel.value} offers`)
+const headerText = computed(() => `${totalAds.value} ${makeModel.value} found`)
 
 const appliedFilters = computed(() => {
 	const list = []
@@ -269,49 +312,54 @@ const appliedFilters = computed(() => {
 	return list
 })
 
-const filteredAds = computed(() => {
-	let result = ads.filter(ad => {
-		if (filters.q && !(`${ad.title} ${ad.subtitle}`.toLowerCase()).includes(filters.q.toLowerCase())) return false
-		if (filters.make && !((ad.title || '').toLowerCase()).includes(filters.make.toLowerCase())) return false
-		if (filters.model && !((ad.title || '').toLowerCase()).includes(filters.model.toLowerCase())) return false
-		if (filters.priceFrom && Number(ad.price) < Number(filters.priceFrom)) return false
-		if (filters.priceTo && Number(ad.price) > Number(filters.priceTo)) return false
-		if (filters.mileageFrom && (ad.km || 0) < Number(filters.mileageFrom)) return false
-		if (filters.mileageTo && (ad.km || 0) > Number(filters.mileageTo)) return false
-		if (filters.registrationFrom) {
-			const ay = Number((ad.registration || '').match(/\d{4}/)?.[0] || 0)
-			if (ay < Number(filters.registrationFrom)) return false
-		}
-		if (filters.registrationTo) {
-			const ay = Number((ad.registration || '').match(/\d{4}/)?.[0] || 0)
-			if (ay > Number(filters.registrationTo)) return false
-		}
-		if (filters.accidentFree && ad.condition.toLowerCase().indexOf('accident') === -1) return false
-		return true
+function buildQuery() {
+	const params = new URLSearchParams({
+		page: String(currentPage.value),
+		limit: String(pageSize),
+		sort: sortOrder.value
 	})
+	if (filters.q) params.set('q', filters.q)
+	if (filters.make) params.set('make', filters.make)
+	if (filters.model) params.set('model', filters.model)
+	if (filters.priceFrom) params.set('priceFrom', filters.priceFrom)
+	if (filters.priceTo) params.set('priceTo', filters.priceTo)
+	if (filters.registrationFrom) params.set('registrationFrom', filters.registrationFrom)
+	if (filters.registrationTo) params.set('registrationTo', filters.registrationTo)
+	if (filters.mileageFrom) params.set('mileageFrom', filters.mileageFrom)
+	if (filters.mileageTo) params.set('mileageTo', filters.mileageTo)
+	if (filters.accidentFree) params.set('accidentFree', 'true')
+	return params.toString()
+}
 
-	// sorting
-	const order = sortOrder.value
-	if (order === 'price-asc') result = result.slice().sort((a,b) => a.price - b.price)
-	else if (order === 'price-desc') result = result.slice().sort((a,b) => b.price - a.price)
-	else if (order === 'km-asc') result = result.slice().sort((a,b) => (a.km || 0) - (b.km || 0))
-	else if (order === 'km-desc') result = result.slice().sort((a,b) => (b.km || 0) - (a.km || 0))
-	else if (order === 'reg-oldest') result = result.slice().sort((a,b) => {
-		const ay = Number((a.registration || '').match(/\d{4}/)?.[0] || 0)
-		const by = Number((b.registration || '').match(/\d{4}/)?.[0] || 0)
-		return ay - by
-	})
-	else if (order === 'reg-newest') result = result.slice().sort((a,b) => {
-		const ay = Number((a.registration || '').match(/\d{4}/)?.[0] || 0)
-		const by = Number((b.registration || '').match(/\d{4}/)?.[0] || 0)
-		return by - ay
-	})
+function scrollToTop() {
+	window.scrollTo(0, 0)
+}
 
-	return result
-})
+async function loadAds() {
+	loading.value = true
+	error.value = ''
+	try {
+		const response = await fetch(`${apiBaseUrl}/api/ads?${buildQuery()}`)
+		const data = await response.json()
+		if (!response.ok) throw new Error(data.message || 'Failed to load ads')
+		ads.value = data.ads || []
+		totalAds.value = Number(data.total || 0)
+		totalPages.value = Number(data.totalPages || 1)
+		currentPage.value = Number(data.page || currentPage.value)
+	} catch (err) {
+		console.error(err)
+		error.value = 'Failed to load search results'
+		ads.value = []
+		totalAds.value = 0
+		totalPages.value = 1
+	} finally {
+		loading.value = false
+	}
+}
 
 function applyFilters() {
-	// computed will update automatically; keep for UX hooks
+	currentPage.value = 1
+	loadAds()
 }
 
 function openMobileFilters() {
@@ -331,7 +379,35 @@ function resetFilters() {
 	filters.mileageTo = ''
 	filters.hasBatteryCert = false
 	filters.accidentFree = false
+	currentPage.value = 1
+	loadAds()
 }
+
+function nextPage() {
+	if (currentPage.value >= totalPages.value) return
+	currentPage.value += 1
+	scrollToTop()
+	loadAds()
+}
+
+function prevPage() {
+	if (currentPage.value <= 1) return
+	currentPage.value -= 1
+	scrollToTop()
+	loadAds()
+}
+
+const canPrev = computed(() => currentPage.value > 1 && !loading.value)
+const canNext = computed(() => currentPage.value < totalPages.value && !loading.value)
+
+watch(sortOrder, () => {
+	currentPage.value = 1
+	loadAds()
+})
+
+onMounted(() => {
+	loadAds()
+})
 </script>
 
 <style scoped>

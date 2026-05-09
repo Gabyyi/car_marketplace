@@ -139,7 +139,7 @@
       <h2 :class="topDealsTitleClass">Top deals for you</h2>
       <div class="mt-4 relative">
         <div ref="swipeContainer" class="-mx-3 flex gap-4 overflow-x-auto px-3 py-2 snap-x snap-mandatory touch-pan-x">
-          <SwipeCar v-for="(c, idx) in swipeCars" :key="idx" :car="c" />
+          <SwipeCar v-for="(c, idx) in swipeCars" :key="c.id || idx" :car="c" />
         </div>
 
         <div class="absolute right-2 top-1/2 hidden -translate-y-1/2 md:block">
@@ -158,7 +158,7 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MainCarAdCard from '../components/MainCarAdCard.vue'
 import SwipeCar from '../components/SwipeCar.vue'
@@ -171,14 +171,47 @@ export default {
     const router = useRouter()
     const swipeContainer = ref(null)
     const { theme } = useTheme()
+    const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+    const swipeCars = ref([])
 
-    const swipeCars = [
-      { image: 'https://images.unsplash.com/photo-1493238792000-8113da705763?auto=format&fit=crop&w=800&q=80', make: 'BMW', model: 'M3', price: '45,000', fuelType: 'Petrol', gearbox: 'Automatic', power: '375hp', kilometers: '50,000 km', year: '2019', location: 'Bucharest' },
-      { image: 'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80', make: 'Audi', model: 'A4', price: '29,500', fuelType: 'Diesel', gearbox: 'Manual', power: '190hp', kilometers: '85,000 km', year: '2018', location: 'Cluj' },
-      { image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=800&q=80', make: 'Mercedes-Benz', model: 'C-Class', price: '34,200', fuelType: 'Petrol', gearbox: 'Automatic', power: '220hp', kilometers: '60,000 km', year: '2020', location: 'Timisoara' },
-      { image: 'https://images.unsplash.com/photo-1504215680853-026ed2a45def?auto=format&fit=crop&w=800&q=80', make: 'Volkswagen', model: 'Golf', price: '15,000', fuelType: 'Diesel', gearbox: 'Manual', power: '150hp', kilometers: '120,000 km', year: '2017', location: 'Iasi' },
-      { image: 'https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=800&q=80', make: 'Ford', model: 'Focus', price: '12,500', fuelType: 'Petrol', gearbox: 'Manual', power: '125hp', kilometers: '90,000 km', year: '2016', location: 'Constanta' }
-    ]
+    function resolveImageUrl(url) {
+      if (!url) return ''
+      if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url
+      if (url.startsWith('/uploads/')) return `${apiBaseUrl}${url}`
+      return url
+    }
+
+    function mapAdToSwipeCar(ad) {
+      const images = Array.isArray(ad?.details?.images) && ad.details.images.length ? ad.details.images : (ad?.images || [])
+      return {
+        id: ad?._id || '',
+        image: resolveImageUrl(images[0]),
+        make: ad?.vehicle?.make || 'Car',
+        model: ad?.vehicle?.model || 'Ad',
+        price: ad?.details?.price || ad?.vehicle?.price || '0',
+        fuelType: ad?.vehicle?.fuel || '',
+        gearbox: ad?.vehicle?.transmission || '',
+        power: ad?.vehicle?.motorPower ? `${ad.vehicle.motorPower}${ad?.vehicle?.motorPowerUnit ? ad.vehicle.motorPowerUnit : ''}` : '',
+        kilometers: ad?.vehicle?.mileage ? `${new Intl.NumberFormat('en-US').format(Number(ad.vehicle.mileage))} km` : '',
+        year: [ad?.vehicle?.regMonth, ad?.vehicle?.regYear].filter(Boolean).join(' ') || ad?.vehicle?.year || '',
+        location: [ad?.contact?.city, ad?.contact?.country].filter(Boolean).join(', ') || ''
+      }
+    }
+
+    async function loadSwipeCars() {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/ads/random-list?limit=5`)
+        if (!response.ok) return
+        const data = await response.json()
+        swipeCars.value = (data.ads || []).map(mapAdToSwipeCar)
+      } catch (error) {
+        console.error('Failed to load swipe cars', error)
+      }
+    }
+
+    onMounted(() => {
+      loadSwipeCars()
+    })
 
     function scrollNext() {
       if (!swipeContainer.value) return

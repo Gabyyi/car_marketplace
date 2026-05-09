@@ -1,7 +1,7 @@
 <template>
   <div :class="containerClass" @click="openCar">
     <div :class="imgWrapperClass">
-      <img :src="car.image" :alt="car.make + ' ' + car.model" class="h-full w-full object-cover object-center" />
+      <img :src="resolvedImage" :alt="car.make + ' ' + car.model" class="h-full w-full object-cover object-center" />
     </div>
 
     <div class="mt-3">
@@ -52,9 +52,19 @@ const tagClass = computed(() => ['rounded-full', 'px-2', 'py-1', theme.value ===
 const locationClass = computed(() => ['mt-8', 'text-sm', theme.value === 'dark' ? 'text-gray-300' : 'text-gray-600'].join(' '))
 
 const tagList = computed(() => [props.car.year, props.car.kilometers, props.car.power, props.car.gearbox, props.car.fuelType].filter(Boolean))
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+const resolvedImage = computed(() => {
+  const image = props.car.image || ''
+  if (!image) return 'https://images.unsplash.com/photo-1493238792000-8113da705763?auto=format&fit=crop&w=800&q=80'
+  if (/^https?:\/\//i.test(image) || image.startsWith('data:')) return image
+  if (image.startsWith('/uploads/')) return `${apiBaseUrl}${image}`
+  return image
+})
 
 const router = useRouter()
 function openCar() {
-  router.push({ name: 'CarAd' })
+  if (props.car.id) router.push({ name: 'CarAd', params: { id: props.car.id } })
+  else router.push({ name: 'CarAd' })
 }
 </script>

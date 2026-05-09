@@ -40,7 +40,7 @@
 							<div>
 								<div class="text-base font-semibold">{{ car.make }} {{ car.model }}</div>
 
-								<div class="mt-1 text-sm text-gray-400">{{ car.headline }}</div>
+													<div class="mt-1 text-sm text-gray-400">{{ headlineDisplay }}</div>
 
 								<div class="mt-2 flex items-center gap-3">
 									<div class="text-2xl font-bold">${{ car.price }}</div>
@@ -73,7 +73,7 @@
 							<!-- phone -->
 							<div class="flex items-center justify-between flex-nowrap gap-2">
 								<div class="text-sm text-gray-400 whitespace-nowrap">Phone: <span class="font-medium inline-block">{{ phoneDisplay }}</span></div>
-								<button @click.prevent="togglePhone" class="text-sm text-blue-500 flex-shrink-0">{{ phoneRevealed ? 'Hide' : 'Show' }}</button>
+								<button @click.prevent="togglePhone" class="text-sm text-blue-500 shrink-0">{{ phoneRevealed ? 'Hide' : 'Show' }}</button>
 							</div>
 
 							<!-- CTA buttons -->
@@ -299,16 +299,59 @@ export default {
 
 		const route = useRoute()
 		const id = route.params.id || route.query.id
+		const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+		function resolveImageUrl(url) {
+			if (!url) return ''
+			if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url
+			if (url.startsWith('/uploads/')) return `${apiBaseUrl}${url}`
+			return url
+		}
 
 		const images = ref([])
 		const index = ref(0)
 		const currentImage = computed(() => images.value.length ? images.value[index.value] : '')
+		const similarCars = ref([])
 
 		function next() { if (!images.value.length) return; index.value = (index.value + 1) % images.value.length }
 		function prev() { if (!images.value.length) return; index.value = (index.value - 1 + images.value.length) % images.value.length }
 		function setIndex(i) { index.value = i }
 
+		function parseNumber(value) {
+			const numeric = Number(String(value ?? '').replace(/[^\d.]/g, ''))
+			return Number.isFinite(numeric) ? numeric : 0
+		}
+
+		function formatPrice(value) {
+			return new Intl.NumberFormat('en-US').format(Math.round(value || 0))
+		}
+
+		function mapAdToSwipeCar(ad) {
+			const price = parseNumber(ad?.details?.price || ad?.vehicle?.price)
+			const mileage = parseNumber(ad?.vehicle?.mileage)
+			const year = ad?.vehicle?.regYear || ad?.vehicle?.year || ''
+			const image = (Array.isArray(ad?.details?.images) && ad.details.images.length ? ad.details.images[0] : (Array.isArray(ad?.images) ? ad.images[0] : '')) || ''
+			return {
+				id: ad?._id || '',
+				image: resolveImageUrl(image),
+				make: ad?.vehicle?.make || 'Car',
+				model: ad?.vehicle?.model || 'Ad',
+				price: formatPrice(price),
+				year: year ? String(year) : '',
+				kilometers: mileage ? `${new Intl.NumberFormat('en-US').format(mileage)} km` : '',
+				power: ad?.vehicle?.motorPower ? `${ad.vehicle.motorPower}${ad?.vehicle?.motorPowerUnit ? ad.vehicle.motorPowerUnit : ''}` : '',
+				gearbox: ad?.vehicle?.transmission || '',
+				fuelType: ad?.vehicle?.fuel || '',
+				location: [ad?.contact?.city, ad?.contact?.country].filter(Boolean).join(', ')
+			}
+		}
+
 		const car = ref({ price: '', year: '', make: '', model: '', category: '', headline: '', description: '', options: [], stats: {}, specs: {} })
+		const headlineDisplay = computed(() => {
+			const headline = car.value.headline || ''
+			if (headline.length <= 27) return headline
+			return `${headline.slice(0, 26)}…`
+		})
 
 		// additional mapped fields
 		car.value.mileage = ''
@@ -339,7 +382,7 @@ export default {
 				if (!res.ok) throw new Error(data.message || 'Failed to load ad')
 				const ad = data.ad
 				// map fields
-				images.value = (ad.details && ad.details.images && ad.details.images.length) ? ad.details.images : (ad.images || [])
+				images.value = ((ad.details && ad.details.images && ad.details.images.length) ? ad.details.images : (ad.images || [])).map(resolveImageUrl)
 				car.value.price = ad.details && ad.details.price ? ad.details.price : (ad.vehicle && ad.vehicle.price ? ad.vehicle.price : '')
 				car.value.year = ad.vehicle && (ad.vehicle.regYear || ad.vehicle.year) ? (ad.vehicle.regYear || ad.vehicle.year) : ''
 				car.value.make = ad.vehicle?.make || ''
@@ -387,6 +430,8 @@ export default {
 				car.value.regMonth = ad.vehicle?.regMonth || ''
 				car.value.regYear = ad.vehicle?.regYear || ''
 
+				await loadSimilarCars(ad)
+
 				// build features list from equipment
 				const eq = ad.equipment || {}
 				const featuresList = []
@@ -432,6 +477,61 @@ export default {
 			} catch (err) {
 				console.error('Load ad error', err)
 			}
+		}
+
+		async function fetchAds(params) {
+			const response = await fetch(`${apiBaseUrl}/api/ads?${new URLSearchParams(params)}`)
+			const data = await response.json()
+			if (!response.ok) throw new Error(data.message || 'Failed to load similar cars')
+			return Array.isArray(data.ads) ? data.ads : []
+		}
+
+		async function loadSimilarCars(ad) {
+			const currentPrice = parseNumber(ad?.details?.price || ad?.vehicle?.price)
+			const currentMake = String(ad?.vehicle?.make || '').trim()
+
+			if (!currentPrice) {
+				similarCars.value = []
+				return
+			}
+
+			const priceFrom = Math.max(0, Math.round(currentPrice * 0.8))
+			const priceTo = Math.max(priceFrom + 1, Math.round(currentPrice * 1.2))
+			const baseParams = {
+				page: '1',
+				limit: '20',
+				priceFrom: String(priceFrom),
+				priceTo: String(priceTo),
+				sort: 'price-asc'
+			}
+
+			let matches = []
+			try {
+				if (currentMake) {
+					matches = await fetchAds({ ...baseParams, make: currentMake })
+				}
+				if (!matches.length) {
+					matches = await fetchAds(baseParams)
+				}
+				if (!matches.length) {
+					matches = await fetchAds({ page: '1', limit: '20', sort: 'standard' })
+				}
+			} catch (err) {
+				console.error('Load similar cars error', err)
+				matches = []
+			}
+
+			const filtered = matches
+				.filter(item => item?._id !== ad?._id)
+				.map(item => ({
+					item,
+					delta: Math.abs(parseNumber(item?.details?.price || item?.vehicle?.price) - currentPrice)
+				}))
+				.sort((a, b) => a.delta - b.delta || new Date(b.item?.createdAt || 0) - new Date(a.item?.createdAt || 0))
+				.slice(0, 8)
+				.map(entry => mapAdToSwipeCar(entry.item))
+
+			similarCars.value = filtered
 		}
 
 			// fallback JS sticky if CSS sticky doesn't behave (some ancestors can prevent sticky)
@@ -495,12 +595,6 @@ export default {
 
 			// Similar cars for swipe section
 			const similarRef = ref(null)
-			const similarCars = [
-				{ image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80', make: 'Audi', model: 'A4', price: '29,500', year: '2019', kilometers: '48,000 km', power: '190hp', gearbox: 'Automatic', fuelType: 'Petrol', location: 'Munich' },
-				{ image: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80', make: 'BMW', model: '320i', price: '32,000', year: '2020', kilometers: '30,000 km', power: '180hp', gearbox: 'Automatic', fuelType: 'Petrol', location: 'Berlin' },
-				{ image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=800&q=80', make: 'Mercedes', model: 'C180', price: '31,200', year: '2018', kilometers: '60,000 km', power: '156hp', gearbox: 'Automatic', fuelType: 'Petrol', location: 'Hamburg' },
-				{ image: 'https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=800&q=80', make: 'Volkswagen', model: 'Golf', price: '18,900', year: '2017', kilometers: '80,000 km', power: '110hp', gearbox: 'Manual', fuelType: 'Diesel', location: 'Frankfurt' }
-			]
 
 			function scrollSimilarBy(amount) {
 				if (!similarRef.value) return
@@ -647,7 +741,7 @@ export default {
 			else router.push({ name: 'Home' })
 		}
 
-				return { images, index, currentImage, next, prev, setIndex, car, seller, theme, containerClass, cardClass, priceClass, titleClass, statClass, specCardClass, techCardClass, featuresCardClass, descriptionCardClass, technical, visibleTechnical, visibleCount, showMore, showMoreClass, toggleShowMore, features, featuresVisibleCount, featuresShowMore, visibleFeatures, featuresItemClass, featuresCheckClass, featuresToggleClass, toggleFeaturesShowMore, sellerCardClass, navButtonClass, rowBg, featuresRowBg, sellerRef, sellerStyle, description, descriptionVisibleCount, descriptionShowMore, visibleDescription, descriptionToggleClass, toggleDescriptionShowMore, similarRef, similarSectionRef, similarCars, scrollSimilarLeft, scrollSimilarRight, goBack, phoneRevealed, phoneDisplay, togglePhone, sellerShortAddress }
+				return { images, index, currentImage, next, prev, setIndex, car, seller, theme, containerClass, cardClass, priceClass, titleClass, statClass, specCardClass, techCardClass, featuresCardClass, descriptionCardClass, technical, visibleTechnical, visibleCount, showMore, showMoreClass, toggleShowMore, features, featuresVisibleCount, featuresShowMore, visibleFeatures, featuresItemClass, featuresCheckClass, featuresToggleClass, toggleFeaturesShowMore, sellerCardClass, navButtonClass, rowBg, featuresRowBg, sellerRef, sellerStyle, description, descriptionVisibleCount, descriptionShowMore, visibleDescription, descriptionToggleClass, toggleDescriptionShowMore, similarRef, similarSectionRef, similarCars, scrollSimilarLeft, scrollSimilarRight, goBack, phoneRevealed, phoneDisplay, togglePhone, sellerShortAddress, headlineDisplay }
 	}
 }
 </script>

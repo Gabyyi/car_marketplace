@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useTheme } from '../composables/useTheme'
 import { useRouter } from 'vue-router'
 
@@ -115,6 +115,84 @@ const props = defineProps({
 })
 
 const { theme } = useTheme()
+const router = useRouter()
+const loadedAd = ref(null)
+const isLoadingAd = ref(false)
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+function resolveImageUrl(url) {
+  if (!url) return props.imageUrl
+  if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url
+  if (url.startsWith('/uploads/')) return `${apiBaseUrl}${url}`
+  return url
+}
+
+function parsePrice(value) {
+  const numeric = Number(String(value ?? '').replace(/[^\d.]/g, ''))
+  return Number.isFinite(numeric) ? numeric : 0
+}
+
+function formatPrice(value) {
+  const amount = parsePrice(value)
+  if (!amount) return String(value || '0')
+  return new Intl.NumberFormat('en-US').format(amount)
+}
+
+function mapAdToCard(ad) {
+  const price = ad?.details?.price ?? ad?.vehicle?.price ?? ''
+  const images = Array.isArray(ad?.details?.images) && ad.details.images.length ? ad.details.images : (ad?.images || [])
+  const contactCity = ad?.contact?.city || ''
+  const contactCountry = ad?.contact?.country || ''
+  const contactZip = ad?.contact?.zip || ''
+  const rating = parsePrice(price) >= 250000 ? 'Elite Offer' : parsePrice(price) >= 70000 ? 'Premium Deal' : 'Great Value'
+
+  return {
+    id: ad?._id || '',
+    imageUrl: resolveImageUrl(images[0] || props.imageUrl),
+    make: ad?.vehicle?.make || props.make,
+    model: ad?.vehicle?.model || props.model,
+    description: ad?.details?.description || ad?.details?.title || props.description,
+    price: formatPrice(price) || props.price,
+    valueRating: rating,
+    tag: ad?.vehicle?.subcategory || ad?.vehicle?.category || props.tag,
+    fuelType: ad?.vehicle?.fuel || props.fuelType,
+    fuelConsumption: ad?.vehicle?.fuelConsumptionComb ? `${ad.vehicle.fuelConsumptionComb} l/100km` : props.fuelConsumption,
+    pollution: ad?.vehicle?.co2Combined ? `${ad.vehicle.co2Combined}g CO2/km` : props.pollution,
+    country: contactCountry || props.country,
+    registrationDate: [ad?.vehicle?.regMonth, ad?.vehicle?.regYear].filter(Boolean).join(' ') || ad?.vehicle?.regDate || props.registrationDate,
+    kilometers: ad?.vehicle?.mileage ? `${new Intl.NumberFormat('en-US').format(Number(ad.vehicle.mileage))} km` : props.kilometers,
+    power: ad?.vehicle?.motorPower ? `${ad.vehicle.motorPower}${ad?.vehicle?.motorPowerUnit ? ` ${ad.vehicle.motorPowerUnit}` : ''}` : props.power,
+    gearbox: ad?.vehicle?.transmission || props.gearbox,
+    location: [contactCity, contactCountry].filter(Boolean).join(', ') || [contactZip, contactCity].filter(Boolean).join(' ') || props.location,
+    dealer: {
+      picture: props.dealer?.picture || 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=160&q=80',
+      name: ad?.owner?.username || [ad?.contact?.firstName, ad?.contact?.lastName].filter(Boolean).join(' ') || props.dealer?.name || 'Dealer',
+      rating: props.dealer?.rating || 4,
+      postalCode: contactZip || props.dealer?.postalCode || '',
+      city: contactCity || props.dealer?.city || ''
+    }
+  }
+}
+
+const activeCard = computed(() => loadedAd.value ? mapAdToCard(loadedAd.value) : mapAdToCard(null))
+
+const imageUrl = computed(() => activeCard.value.imageUrl)
+const make = computed(() => activeCard.value.make)
+const model = computed(() => activeCard.value.model)
+const description = computed(() => activeCard.value.description)
+const price = computed(() => activeCard.value.price)
+const valueRating = computed(() => activeCard.value.valueRating)
+const tag = computed(() => activeCard.value.tag)
+const fuelType = computed(() => activeCard.value.fuelType)
+const fuelConsumption = computed(() => activeCard.value.fuelConsumption)
+const pollution = computed(() => activeCard.value.pollution)
+const country = computed(() => activeCard.value.country)
+const registrationDate = computed(() => activeCard.value.registrationDate)
+const kilometers = computed(() => activeCard.value.kilometers)
+const power = computed(() => activeCard.value.power)
+const gearbox = computed(() => activeCard.value.gearbox)
+const location = computed(() => activeCard.value.location)
+const displayedDealer = computed(() => Object.assign({}, props.dealer || {}, activeCard.value.dealer || {}))
 
 const cardClasses = computed(() => [
   'overflow-hidden', 'rounded-2xl', 'shadow-sm', 'cursor-pointer',
@@ -140,14 +218,31 @@ const defaultDealer = {
   city: 'Bucharest'
 }
 
-const displayedDealer = computed(() => Object.assign({}, defaultDealer, props.dealer || {}))
-
 function starArray(rating) {
   return Math.max(0, Math.round(rating || 0))
 }
 
-const router = useRouter()
+async function loadRandomHighValueAd() {
+  if (isLoadingAd.value) return
+  isLoadingAd.value = true
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/ads/random?minPrice=70000`)
+    if (!res.ok) return
+    const data = await res.json()
+    loadedAd.value = data.ad || null
+  } catch (error) {
+    console.error('Failed to load main ad', error)
+  } finally {
+    isLoadingAd.value = false
+  }
+}
+
+onMounted(() => {
+  loadRandomHighValueAd()
+})
+
 function openCar() {
-  router.push({ name: 'CarAd' })
+  if (loadedAd.value?._id) router.push({ name: 'CarAd', params: { id: loadedAd.value._id } })
+  else router.push({ name: 'CarAd' })
 }
 </script>
