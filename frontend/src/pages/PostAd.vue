@@ -400,7 +400,7 @@
 										<template v-for="(c, idx) in colorOptions" :key="c.name">
 											<button type="button" @click.prevent="toggleColor(c.name)" :aria-pressed="equipment.colors.includes(c.name)"
 												:class="['flex items-center gap-3 px-3 py-2 rounded-md border', equipment.colors.includes(c.name) ? (isDark ? 'border-purple-600 bg-purple-700 text-white' : 'border-orange-600 bg-orange-50 text-gray-900') : (isDark ? 'border-neutral-700 text-gray-100' : 'border-gray-200 text-gray-700') ]">
-												<span :style="{ background: c.hex }" class="w-8 h-8 rounded-full block overflow-hidden flex-shrink-0 border" :class="isDark ? 'border-neutral-700' : 'border-gray-200'"></span>
+												<span :style="{ background: c.hex }" class="w-8 h-8 rounded-full block overflow-hidden shrink-0 border" :class="isDark ? 'border-neutral-700' : 'border-gray-200'"></span>
 												<span class="text-sm">{{ c.label }}</span>
 											</button>
 										</template>
@@ -431,12 +431,12 @@
 									<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
 										<template v-for="(c, i) in colorOptions.slice(0,8)" :key="'int-'+i">
 											<button type="button" @click.prevent="equipment.interiorColor = c.name" :class="['flex items-center gap-3 px-3 py-2 rounded-md border', equipment.interiorColor === c.name ? (isDark ? 'border-purple-600 bg-purple-700 text-white' : 'border-orange-600 bg-orange-50 text-gray-900') : (isDark ? 'border-neutral-700 text-gray-100' : 'border-gray-200 text-gray-700') ]">
-												<span class="w-8 h-8 rounded-full block overflow-hidden flex-shrink-0 border" :style="{ background: c.hex }" :class="isDark ? 'border-neutral-700' : 'border-gray-200'"></span>
+												<span class="w-8 h-8 rounded-full block overflow-hidden shrink-0 border" :style="{ background: c.hex }" :class="isDark ? 'border-neutral-700' : 'border-gray-200'"></span>
 												<span class="text-sm">{{ c.label }}</span>
 											</button>
 										</template>
 										<button type="button" @click.prevent="equipment.interiorColor = 'other'" :class="['flex items-center gap-3 px-3 py-2 rounded-md border', equipment.interiorColor === 'other' ? (isDark ? 'border-purple-600 bg-purple-700 text-white' : 'border-orange-600 bg-orange-50 text-gray-900') : (isDark ? 'border-neutral-700 text-gray-100' : 'border-gray-200 text-gray-700') ]">
-											<span class="w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-pink-500 border"></span>
+											<span class="w-8 h-8 rounded-full bg-linear-to-r from-yellow-400 to-pink-500 border"></span>
 											<span class="text-sm">Other</span>
 										</button>
 									</div>
@@ -1028,8 +1028,10 @@
 	</main>
 </template>
 
+
 <script setup>
-	import { ref, reactive, computed, nextTick } from 'vue'
+	import { ref, reactive, computed, nextTick, onMounted } from 'vue'
+	import { useRoute } from 'vue-router'
 	import { useTheme } from '../composables/useTheme'
 
 	const steps = [
@@ -1043,6 +1045,9 @@
 	const modalActive = ref(-1)
 	const subStepIndex = ref(0)
 	const completed = ref([false, false, false, false])
+	const route = useRoute()
+	const editingAdId = ref('')
+	const existingImageUrls = ref([])
 
 	const vehicle = reactive({ make: '', model: '', year: '', regMonth: '', regYear: '', regDate: '', mileage: '', engine: '', fuel: '', transmission: '', emission: '', conditionNotes: '', inspectionDate: '', category: '', doors: '', slidingDoor: '', seats: '', motorPower: null, motorPowerUnit: 'kW', cubicCapacity: '', paddleShifters: false, driveType: '', emissionClass: '', emissionSticker: '', particulateFilter: false, startStop: false, fuelConsumptionComb: null, fuelConsumptionUrban: null, fuelConsumptionExtraUrban: null, co2Combined: null, subcategory: '', owners: '', damaged: '', accidentDamaged: '', roadworthy: '', nonSmoking: false, inspectionMonth: '', inspectionYear: '', fullServiceHistory: false, warranty: false })
 	const equipment = reactive({
@@ -1561,6 +1566,52 @@
 	const dragOverIndex = computed(() => dragIndex.value)
 
 	const selectBtnClass = computed(() => isDark.value ? 'text-white' : 'text-black')
+	const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+	function authHeaders(extra = {}) {
+		const token = localStorage.getItem('token')
+		return token ? { Authorization: `Bearer ${token}`, ...extra } : extra
+	}
+
+	function applyAdToForm(ad) {
+		if (!ad) return
+		editingAdId.value = ad._id || ''
+		const loadedVehicle = ad.vehicle || {}
+		const loadedEquipment = ad.equipment || {}
+		const loadedDetails = ad.details || {}
+		const loadedContact = ad.contact || {}
+		Object.assign(vehicle, loadedVehicle)
+		Object.assign(equipment, loadedEquipment)
+		Object.assign(details, {
+			title: loadedDetails.title || '',
+			description: loadedDetails.description || '',
+			price: loadedDetails.price || '',
+			priceType: loadedDetails.priceType || 'Fixed',
+			currency: loadedDetails.currency || '€'
+		})
+		Object.assign(contact, loadedContact)
+		existingImageUrls.value = Array.isArray(ad.images) ? ad.images.slice() : []
+		details.images = existingImageUrls.value.map(url => ({ url }))
+		completed.value = [true, true, true, true]
+		modalOpen.value = false
+		modalActive.value = -1
+	}
+
+	async function loadAdForEdit(adId) {
+		if (!adId) return
+		try {
+			const response = await fetch(`${apiBaseUrl}/api/ads/${adId}`)
+			const data = await response.json()
+			if (!response.ok) throw new Error(data.message || 'Failed to load ad')
+			applyAdToForm(data.ad)
+			activeMode.value = 'edit'
+			modalOpen.value = false
+			modalActive.value = -1
+		} catch (err) {
+			console.error(err)
+			alert(err.message || 'Could not load ad for editing')
+		}
+	}
 
 	function triggerFileInput() { openFilePicker() }
 	function onFilesSelected(e) { onImagesSelected(e) }
@@ -1570,6 +1621,7 @@
 	function onDrop(idx, e) { handleDrop(e, idx) }
 
 	const allComplete = computed(() => completed.value.every(Boolean))
+	const activeMode = ref('create')
 
 	function saveAd() {
 		if (!allComplete.value) return
@@ -1582,7 +1634,7 @@
 		const filesToUpload = (details.images || []).filter(i => i && i.file).map(i => i.file)
 		plainDetails.images = [] // send empty images array
 
-		const payload = { vehicle: plainVehicle, equipment: plainEquipment, details: plainDetails, contact: plainContact, images: [] }
+		const payload = { vehicle: plainVehicle, equipment: plainEquipment, details: plainDetails, contact: plainContact, images: activeMode.value === 'edit' ? existingImageUrls.value.slice() : [] }
 		console.log('Posting ad payload:', payload)
 
 		const token = localStorage.getItem('token')
@@ -1591,8 +1643,11 @@
 			return
 		}
 
-		fetch('http://localhost:4000/api/ads', {
-			method: 'POST',
+		const method = activeMode.value === 'edit' ? 'PUT' : 'POST'
+		const url = activeMode.value === 'edit' ? `${apiBaseUrl}/api/ads/${editingAdId.value}` : `${apiBaseUrl}/api/ads`
+
+		fetch(url, {
+			method,
 			headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
 			body: JSON.stringify(payload)
 		})
@@ -1602,12 +1657,12 @@
 					console.error('Save ad failed:', data)
 					throw new Error(data.message || 'Failed to save ad')
 				}
-				console.log('Ad created:', data.ad)
+				console.log(activeMode.value === 'edit' ? 'Ad updated:' : 'Ad created:', data.ad)
 				// upload image files to get persistent URLs
 				if (filesToUpload.length > 0) {
 					const form = new FormData()
 					for (const f of filesToUpload) form.append('images', f)
-					const uploadRes = await fetch(`http://localhost:4000/api/ads/${data.ad._id}/images`, {
+					const uploadRes = await fetch(`${apiBaseUrl}/api/ads/${data.ad._id}/images`, {
 						method: 'POST',
 						headers: { 'Authorization': 'Bearer ' + token },
 						body: form
@@ -1618,15 +1673,23 @@
 						throw new Error(uploadData.message || 'Failed to upload images')
 					}
 					console.log('Images uploaded:', uploadData.urls)
-					alert('Ad created and images uploaded successfully')
+					alert(activeMode.value === 'edit' ? 'Ad updated and images uploaded successfully' : 'Ad created and images uploaded successfully')
 				} else {
-					alert('Ad created successfully')
+					alert(activeMode.value === 'edit' ? 'Ad updated successfully' : 'Ad created successfully')
 				}
-				window.location.href = '/' // redirect to home
+				window.location.href = activeMode.value === 'edit' ? '/profile' : '/' // redirect after save
 			})
 			.catch((err) => {
 				console.error(err)
 				alert(err.message || 'Error saving ad')
 			})
 	}
+
+	onMounted(() => {
+		const editId = route.query.edit
+		if (typeof editId === 'string' && editId.trim()) {
+			activeMode.value = 'edit'
+			loadAdForEdit(editId.trim())
+		}
+	})
 </script>

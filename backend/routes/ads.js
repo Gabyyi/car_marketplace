@@ -25,6 +25,75 @@ const upload = multer({ storage })
 
 const router = express.Router()
 
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function toNumberExpression(path) {
+  return {
+    $convert: {
+      input: { $ifNull: [path, 0] },
+      to: 'double',
+      onError: 0,
+      onNull: 0
+    }
+  }
+}
+
+function buildSortStage(sort) {
+  switch (sort) {
+    case 'price-asc':
+      return { numericPrice: 1, createdAt: -1 }
+    case 'price-desc':
+      return { numericPrice: -1, createdAt: -1 }
+    case 'km-asc':
+      return { numericMileage: 1, createdAt: -1 }
+    case 'km-desc':
+      return { numericMileage: -1, createdAt: -1 }
+    case 'reg-oldest':
+      return { numericRegYear: 1, createdAt: -1 }
+    case 'reg-newest':
+      return { numericRegYear: -1, createdAt: -1 }
+    default:
+      return { createdAt: -1 }
+  }
+}
+
+function buildMatchStage({ q, make, model, priceFrom, priceTo, mileageFrom, mileageTo, registrationFrom, registrationTo, accidentFree }) {
+  const match = {}
+
+  if (make) match.normalizedMake = { $regex: `^${escapeRegex(make)}` }
+  if (model) match.normalizedModel = { $regex: escapeRegex(model) }
+  if (Number.isFinite(priceFrom)) match.numericPrice = { ...match.numericPrice, $gte: priceFrom }
+  if (Number.isFinite(priceTo)) match.numericPrice = { ...match.numericPrice, $lte: priceTo }
+  if (Number.isFinite(mileageFrom)) match.numericMileage = { ...match.numericMileage, $gte: mileageFrom }
+  if (Number.isFinite(mileageTo)) match.numericMileage = { ...match.numericMileage, $lte: mileageTo }
+  if (Number.isFinite(registrationFrom)) match.numericRegYear = { ...match.numericRegYear, $gte: registrationFrom }
+  if (Number.isFinite(registrationTo)) match.numericRegYear = { ...match.numericRegYear, $lte: registrationTo }
+  if (accidentFree) {
+    match.$and = [
+      { $or: [{ 'vehicle.accidentDamaged': { $in: [null, undefined, '', 'No'] } }, { 'vehicle.accidentDamaged': { $exists: false } }] },
+      { $or: [{ 'vehicle.damaged': { $in: [null, undefined, '', 'No'] } }, { 'vehicle.damaged': { $exists: false } }] },
+      { normalizedDescription: { $not: /accident/i } }
+    ]
+  }
+
+  if (q) {
+    const qRegex = escapeRegex(q)
+    const qClause = {
+      $or: [
+        { normalizedMake: { $regex: qRegex } },
+        { normalizedModel: { $regex: qRegex } },
+        { normalizedTitle: { $regex: qRegex } },
+        { normalizedDescription: { $regex: qRegex } }
+      ]
+    }
+    match.$and = match.$and ? [...match.$and, qClause] : [qClause]
+  }
+
+  return match
+}
+
 function authMiddleware(req, res, next) {
   const auth = req.headers.authorization
   if (!auth) return res.status(401).json({ message: 'No authorization header' })
@@ -75,6 +144,48 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 })
 
+// PUT /api/ads/:id - update an existing ad owned by the current user
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const ad = await Ad.findById(req.params.id)
+    if (!ad) return res.status(404).json({ message: 'Ad not found' })
+    if (String(ad.owner) !== String(req.userId)) return res.status(403).json({ message: 'Not allowed' })
+
+    const { vehicle, equipment, details, contact, images } = req.body
+    if (vehicle) ad.vehicle = vehicle
+    if (equipment) ad.equipment = equipment
+    if (details) ad.details = { ...(ad.details || {}), ...details }
+    if (contact) ad.contact = contact
+    if (Array.isArray(images)) {
+      ad.images = images
+      ad.details = ad.details || {}
+      ad.details.images = images
+    }
+
+    await ad.save()
+    res.json({ ad })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// DELETE /api/ads/:id - delete an ad owned by the current user
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const ad = await Ad.findById(req.params.id)
+    if (!ad) return res.status(404).json({ message: 'Ad not found' })
+    if (String(ad.owner) !== String(req.userId)) return res.status(403).json({ message: 'Not allowed' })
+
+    await Ad.deleteOne({ _id: ad._id })
+    await User.updateOne({ _id: req.userId }, { $pull: { ads: ad._id } })
+    res.json({ message: 'Ad deleted' })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // GET /api/ads - list ads with pagination and basic filters
 router.get('/', async (req, res) => {
   try {
@@ -92,49 +203,58 @@ router.get('/', async (req, res) => {
     const accidentFree = String(req.query.accidentFree || '') === 'true'
     const sort = String(req.query.sort || 'standard')
 
-    const ads = await Ad.find({}).populate('owner', 'username email').sort({ createdAt: -1 })
+    const pipeline = [
+      {
+        $addFields: {
+          normalizedMake: { $toLower: { $ifNull: ['$vehicle.make', ''] } },
+          normalizedModel: { $toLower: { $ifNull: ['$vehicle.model', ''] } },
+          normalizedTitle: { $toLower: { $ifNull: ['$details.title', ''] } },
+          normalizedDescription: { $toLower: { $ifNull: ['$details.description', ''] } },
+          numericPrice: toNumberExpression('$details.price'),
+          numericMileage: toNumberExpression('$vehicle.mileage'),
+          numericRegYear: toNumberExpression({ $ifNull: ['$vehicle.regYear', '$vehicle.year'] })
+        }
+      },
+      { $match: buildMatchStage({ q, make, model, priceFrom, priceTo, mileageFrom, mileageTo, registrationFrom, registrationTo, accidentFree }) },
+      {
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          ads: [
+            { $sort: buildSortStage(sort) },
+            { $skip: (page - 1) * limit },
+            { $limit: limit },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'owner',
+                foreignField: '_id',
+                as: 'owner'
+              }
+            },
+            { $unwind: { path: '$owner', preserveNullAndEmptyArrays: true } },
+            {
+              $project: {
+                normalizedMake: 0,
+                normalizedModel: 0,
+                normalizedTitle: 0,
+                normalizedDescription: 0,
+                numericPrice: 0,
+                numericMileage: 0,
+                numericRegYear: 0
+              }
+            }
+          ]
+        }
+      }
+    ]
 
-    const filtered = ads.filter(ad => {
-      const adMake = String(ad.vehicle?.make || '').toLowerCase()
-      const adModel = String(ad.vehicle?.model || '').toLowerCase()
-      const title = String(ad.details?.title || '').toLowerCase()
-      const description = String(ad.details?.description || '').toLowerCase()
-      const price = Number(String(ad.details?.price || ad.vehicle?.price || 0).replace(/[^\d.]/g, ''))
-      const mileage = Number(String(ad.vehicle?.mileage || 0).replace(/[^\d.]/g, ''))
-      const regYear = Number(String(ad.vehicle?.regYear || ad.vehicle?.year || 0).replace(/[^\d.]/g, ''))
-      const isAccidentFree = [ad.vehicle?.accidentDamaged, ad.vehicle?.damaged].every(v => [null, undefined, '', 'No'].includes(v)) && !/accident/i.test(description)
-
-      if (q && !(adMake.includes(q) || adModel.includes(q) || title.includes(q) || description.includes(q))) return false
-      if (make && !adMake.startsWith(make)) return false
-      if (model && !adModel.includes(model)) return false
-      if (Number.isFinite(priceFrom) && price < priceFrom) return false
-      if (Number.isFinite(priceTo) && price > priceTo) return false
-      if (Number.isFinite(mileageFrom) && mileage < mileageFrom) return false
-      if (Number.isFinite(mileageTo) && mileage > mileageTo) return false
-      if (Number.isFinite(registrationFrom) && regYear < registrationFrom) return false
-      if (Number.isFinite(registrationTo) && regYear > registrationTo) return false
-      if (accidentFree && !isAccidentFree) return false
-      return true
-    })
-
-    const sorters = {
-      'price-asc': (a, b) => Number(String(a.details?.price || 0).replace(/[^\d.]/g, '')) - Number(String(b.details?.price || 0).replace(/[^\d.]/g, '')),
-      'price-desc': (a, b) => Number(String(b.details?.price || 0).replace(/[^\d.]/g, '')) - Number(String(a.details?.price || 0).replace(/[^\d.]/g, '')),
-      'km-asc': (a, b) => Number(String(a.vehicle?.mileage || 0).replace(/[^\d.]/g, '')) - Number(String(b.vehicle?.mileage || 0).replace(/[^\d.]/g, '')),
-      'km-desc': (a, b) => Number(String(b.vehicle?.mileage || 0).replace(/[^\d.]/g, '')) - Number(String(a.vehicle?.mileage || 0).replace(/[^\d.]/g, '')),
-      'reg-oldest': (a, b) => Number(String(a.vehicle?.regYear || a.vehicle?.year || 0).replace(/[^\d.]/g, '')) - Number(String(b.vehicle?.regYear || b.vehicle?.year || 0).replace(/[^\d.]/g, '')),
-      'reg-newest': (a, b) => Number(String(b.vehicle?.regYear || b.vehicle?.year || 0).replace(/[^\d.]/g, '')) - Number(String(a.vehicle?.regYear || a.vehicle?.year || 0).replace(/[^\d.]/g, ''))
-    }
-
-    const sorted = filtered.slice().sort(sorters[sort] || ((a, b) => new Date(b.createdAt) - new Date(a.createdAt)))
-    const total = sorted.length
+    const [result] = await Ad.aggregate(pipeline).allowDiskUse(true)
+    const total = result?.metadata?.[0]?.total || 0
     const totalPages = Math.max(1, Math.ceil(total / limit))
     const safePage = Math.min(page, totalPages)
-    const start = (safePage - 1) * limit
-    const paged = sorted.slice(start, start + limit)
 
     res.json({
-      ads: paged,
+      ads: result?.ads || [],
       page: safePage,
       limit,
       total,
@@ -150,18 +270,30 @@ router.get('/', async (req, res) => {
 router.get('/random', async (req, res) => {
   try {
     const minPrice = Number(req.query.minPrice || 0)
-    const ads = await Ad.find({}).populate('owner', 'username email').sort({ createdAt: -1 })
+    const pipeline = [
+      {
+        $addFields: {
+          numericPrice: toNumberExpression('$details.price')
+        }
+      },
+      { $match: Number.isFinite(minPrice) && minPrice > 0 ? { numericPrice: { $gte: minPrice } } : {} },
+      { $sample: { size: 1 } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'owner',
+          foreignField: '_id',
+          as: 'owner'
+        }
+      },
+      { $unwind: { path: '$owner', preserveNullAndEmptyArrays: true } },
+      { $project: { numericPrice: 0 } }
+    ]
 
-    const filtered = ads.filter(ad => {
-      const price = Number(String(ad.details?.price || ad.vehicle?.price || 0).replace(/[^\d.]/g, ''))
-      return Number.isFinite(price) && price >= minPrice
-    })
+    const ads = await Ad.aggregate(pipeline).allowDiskUse(true)
+    if (!ads.length) return res.status(404).json({ message: 'No ads found' })
 
-    const pool = filtered.length ? filtered : ads
-    if (!pool.length) return res.status(404).json({ message: 'No ads found' })
-
-    const randomAd = pool[Math.floor(Math.random() * pool.length)]
-    res.json({ ad: randomAd })
+    res.json({ ad: ads[0] })
   } catch (err) {
     console.error(err)
     res.status(500).json({ message: 'Server error' })
@@ -173,18 +305,28 @@ router.get('/random-list', async (req, res) => {
   try {
     const limit = Math.max(1, Math.min(24, Number(req.query.limit || 5)))
     const minPrice = Number(req.query.minPrice || 0)
-    const ads = await Ad.find({}).populate('owner', 'username email').sort({ createdAt: -1 })
+    const pipeline = [
+      {
+        $addFields: {
+          numericPrice: toNumberExpression('$details.price')
+        }
+      },
+      { $match: Number.isFinite(minPrice) && minPrice > 0 ? { numericPrice: { $gte: minPrice } } : {} },
+      { $sample: { size: limit } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'owner',
+          foreignField: '_id',
+          as: 'owner'
+        }
+      },
+      { $unwind: { path: '$owner', preserveNullAndEmptyArrays: true } },
+      { $project: { numericPrice: 0 } }
+    ]
 
-    const eligible = ads.filter(ad => {
-      const price = Number(String(ad.details?.price || ad.vehicle?.price || 0).replace(/[^\d.]/g, ''))
-      return Number.isFinite(price) && price >= minPrice
-    })
-
-    const pool = eligible.length ? eligible : ads
-    if (!pool.length) return res.json({ ads: [] })
-
-    const shuffled = [...pool].sort(() => Math.random() - 0.5)
-    res.json({ ads: shuffled.slice(0, limit) })
+    const ads = await Ad.aggregate(pipeline).allowDiskUse(true)
+    res.json({ ads })
   } catch (err) {
     console.error(err)
     res.status(500).json({ message: 'Server error' })

@@ -9,10 +9,11 @@ const Ad = require('../models/Ad')
 
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGO_URL || 'mongodb://127.0.0.1:27017/car_marketplace'
 const DB_NAME = process.env.DB_NAME || 'CarBuy'
-const TARGET_USERS = Number(process.env.SEED_USERS || 70)
-const TARGET_ADS = Number(process.env.SEED_ADS || 200)
+const BATCH_USERS = Number(process.env.SEED_USERS || 1000)
+const BATCH_ADS = Number(process.env.SEED_ADS || 10000)
 const PASSWORD = process.env.SEED_PASSWORD || 'password123'
 let fakerApi = null
+let cachedCarImages = null
 
 const makes = ['BMW', 'Audi', 'Mercedes-Benz', 'Toyota', 'Ford', 'Volkswagen', 'Tesla', 'Volvo', 'Porsche', 'Hyundai']
 const models = {
@@ -52,7 +53,14 @@ const carImageSources = [
   'https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1600&q=80',
   'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1600&q=80',
   'https://images.unsplash.com/photo-1550355291-bbee04a92027?auto=format&fit=crop&w=1600&q=80',
-  'https://images.unsplash.com/photo-1489824904134-891ab64532f1?auto=format&fit=crop&w=1600&q=80'
+  'https://images.unsplash.com/photo-1489824904134-891ab64532f1?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1493238792000-8113da705763?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1494905998402-395d579af36f?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1469285994282-454ceb49e63f?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1532581140115-3e355d1ed1de?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1471478331149-c72f17e33c73?auto=format&fit=crop&w=1600&q=80'
 ]
 
 const vehicleCatalog = {
@@ -107,6 +115,41 @@ const vehicleCatalog = {
   Ford: [
     { model: 'Focus', category: 'Hatchback', engine: '1.5 EcoBoost', fuel: 'Petrol', transmission: 'Manual', motorPower: 150, motorPowerUnit: 'hp', cubicCapacity: '1498', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 17900, mileageBase: 33000, city: 'Bucharest', country: 'Romania', doors: '4/5', seats: 5, priceType: 'Fixed price' },
     { model: 'Kuga', category: 'SUV', engine: '2.5 Hybrid', fuel: 'Hybrid', transmission: 'Automatic', motorPower: 190, motorPowerUnit: 'hp', cubicCapacity: '2488', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 26900, mileageBase: 29000, city: 'London', country: 'United Kingdom', doors: '4/5', seats: 5, priceType: 'Negotiable' }
+  ],
+  Honda: [
+    { model: 'Civic', category: 'Hatchback', engine: '1.5 VTEC Turbo', fuel: 'Petrol', transmission: 'Manual', motorPower: 182, motorPowerUnit: 'hp', cubicCapacity: '1498', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 22900, mileageBase: 26000, city: 'Madrid', country: 'Spain', doors: '4/5', seats: 5, priceType: 'Fixed price' },
+    { model: 'CR-V', category: 'SUV', engine: '2.0 Hybrid', fuel: 'Hybrid', transmission: 'Automatic', motorPower: 184, motorPowerUnit: 'hp', cubicCapacity: '1993', driveType: 'AWD/4WD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 30900, mileageBase: 30000, city: 'Rome', country: 'Italy', doors: '4/5', seats: 5, priceType: 'Negotiable' },
+    { model: 'Accord', category: 'Saloon', engine: '2.0 Hybrid', fuel: 'Hybrid', transmission: 'Automatic', motorPower: 204, motorPowerUnit: 'hp', cubicCapacity: '1993', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 31900, mileageBase: 24000, city: 'Lisbon', country: 'Portugal', doors: '4/5', seats: 5, priceType: 'Fixed price' }
+  ],
+  Mazda: [
+    { model: 'Mazda3', category: 'Hatchback', engine: '2.0 Skyactiv-G', fuel: 'Petrol', transmission: 'Manual', motorPower: 150, motorPowerUnit: 'hp', cubicCapacity: '1998', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 20900, mileageBase: 27000, city: 'Vienna', country: 'Austria', doors: '4/5', seats: 5, priceType: 'Fixed price' },
+    { model: 'CX-5', category: 'SUV', engine: '2.5 Skyactiv-G', fuel: 'Petrol', transmission: 'Automatic', motorPower: 194, motorPowerUnit: 'hp', cubicCapacity: '2488', driveType: 'AWD/4WD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 29900, mileageBase: 22000, city: 'Prague', country: 'Czech Republic', doors: '4/5', seats: 5, priceType: 'Negotiable' },
+    { model: 'MX-5', category: 'Convertible', engine: '2.0 Skyactiv-G', fuel: 'Petrol', transmission: 'Manual', motorPower: 184, motorPowerUnit: 'hp', cubicCapacity: '1998', driveType: 'RWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 31900, mileageBase: 18000, city: 'Barcelona', country: 'Spain', doors: '2/3', seats: 2, priceType: 'On request' }
+  ],
+  Nissan: [
+    { model: 'Qashqai', category: 'SUV', engine: '1.3 DIG-T', fuel: 'Petrol', transmission: 'Automatic', motorPower: 158, motorPowerUnit: 'hp', cubicCapacity: '1332', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 24900, mileageBase: 28000, city: 'Bucharest', country: 'Romania', doors: '4/5', seats: 5, priceType: 'Fixed price' },
+    { model: 'X-Trail', category: 'SUV', engine: '1.5 e-POWER', fuel: 'Hybrid', transmission: 'Automatic', motorPower: 213, motorPowerUnit: 'hp', cubicCapacity: '1497', driveType: 'AWD/4WD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 33900, mileageBase: 21000, city: 'Warsaw', country: 'Poland', doors: '4/5', seats: 7, priceType: 'Negotiable' },
+    { model: 'Leaf', category: 'Hatchback', engine: 'Electric', fuel: 'Electric', transmission: 'Automatic', motorPower: 150, motorPowerUnit: 'hp', cubicCapacity: '', driveType: 'FWD', emission: 'Zero emission', emissionClass: 'Electric', emissionSticker: 'Zero', subcategory: 'Used vehicle', priceBase: 18900, mileageBase: 32000, city: 'Amsterdam', country: 'Netherlands', doors: '4/5', seats: 5, priceType: 'Fixed price' }
+  ],
+  Kia: [
+    { model: 'Ceed', category: 'Hatchback', engine: '1.5 T-GDI', fuel: 'Petrol', transmission: 'Manual', motorPower: 160, motorPowerUnit: 'hp', cubicCapacity: '1482', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 19900, mileageBase: 26000, city: 'Sofia', country: 'Bulgaria', doors: '4/5', seats: 5, priceType: 'Fixed price' },
+    { model: 'Sportage', category: 'SUV', engine: '1.6 T-GDI Hybrid', fuel: 'Hybrid', transmission: 'Automatic', motorPower: 230, motorPowerUnit: 'hp', cubicCapacity: '1598', driveType: 'AWD/4WD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 31900, mileageBase: 23000, city: 'Budapest', country: 'Hungary', doors: '4/5', seats: 5, priceType: 'Negotiable' },
+    { model: 'EV6', category: 'SUV', engine: 'Electric', fuel: 'Electric', transmission: 'Automatic', motorPower: 229, motorPowerUnit: 'hp', cubicCapacity: '', driveType: 'RWD', emission: 'Zero emission', emissionClass: 'Electric', emissionSticker: 'Zero', subcategory: 'Used vehicle', priceBase: 40900, mileageBase: 16000, city: 'Berlin', country: 'Germany', doors: '4/5', seats: 5, priceType: 'On request' }
+  ],
+  Skoda: [
+    { model: 'Octavia', category: 'Estate', engine: '2.0 TDI', fuel: 'Diesel', transmission: 'Automatic', motorPower: 150, motorPowerUnit: 'hp', cubicCapacity: '1968', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 23900, mileageBase: 29000, city: 'Prague', country: 'Czech Republic', doors: '4/5', seats: 5, priceType: 'Fixed price' },
+    { model: 'Kodiaq', category: 'SUV', engine: '2.0 TSI', fuel: 'Petrol', transmission: 'Automatic', motorPower: 190, motorPowerUnit: 'hp', cubicCapacity: '1984', driveType: 'AWD/4WD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 34900, mileageBase: 24000, city: 'Brno', country: 'Czech Republic', doors: '4/5', seats: 7, priceType: 'Negotiable' },
+    { model: 'Superb', category: 'Saloon', engine: '2.0 TSI', fuel: 'Petrol', transmission: 'Automatic', motorPower: 190, motorPowerUnit: 'hp', cubicCapacity: '1984', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 28900, mileageBase: 25000, city: 'Vienna', country: 'Austria', doors: '4/5', seats: 5, priceType: 'Fixed price' }
+  ],
+  Renault: [
+    { model: 'Megane', category: 'Hatchback', engine: '1.3 TCe', fuel: 'Petrol', transmission: 'Manual', motorPower: 140, motorPowerUnit: 'hp', cubicCapacity: '1333', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 17900, mileageBase: 34000, city: 'Paris', country: 'France', doors: '4/5', seats: 5, priceType: 'Fixed price' },
+    { model: 'Kadjar', category: 'SUV', engine: '1.3 TCe', fuel: 'Petrol', transmission: 'Automatic', motorPower: 160, motorPowerUnit: 'hp', cubicCapacity: '1333', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 22900, mileageBase: 30000, city: 'Lyon', country: 'France', doors: '4/5', seats: 5, priceType: 'Negotiable' },
+    { model: 'Austral', category: 'SUV', engine: '1.2 E-Tech Hybrid', fuel: 'Hybrid', transmission: 'Automatic', motorPower: 200, motorPowerUnit: 'hp', cubicCapacity: '1199', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 29900, mileageBase: 19000, city: 'Marseille', country: 'France', doors: '4/5', seats: 5, priceType: 'On request' }
+  ],
+  Peugeot: [
+    { model: '308', category: 'Hatchback', engine: '1.2 PureTech', fuel: 'Petrol', transmission: 'Manual', motorPower: 130, motorPowerUnit: 'hp', cubicCapacity: '1199', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 18900, mileageBase: 31000, city: 'Nice', country: 'France', doors: '4/5', seats: 5, priceType: 'Fixed price' },
+    { model: '3008', category: 'SUV', engine: '1.6 Hybrid', fuel: 'Hybrid', transmission: 'Automatic', motorPower: 225, motorPowerUnit: 'hp', cubicCapacity: '1598', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 29900, mileageBase: 22000, city: 'Toulouse', country: 'France', doors: '4/5', seats: 5, priceType: 'Negotiable' },
+    { model: '508', category: 'Saloon', engine: '1.6 PureTech', fuel: 'Petrol', transmission: 'Automatic', motorPower: 180, motorPowerUnit: 'hp', cubicCapacity: '1598', driveType: 'FWD', emission: 'Euro 6d', emissionClass: 'Euro 6d', emissionSticker: '4 (Green)', subcategory: 'Used vehicle', priceBase: 27900, mileageBase: 26000, city: 'Paris', country: 'France', doors: '4/5', seats: 5, priceType: 'Fixed price' }
   ]
 }
 
@@ -115,43 +158,103 @@ const profilePool = Object.entries(vehicleCatalog).flatMap(([make, entries]) => 
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
 }
-
 function bool() {
   return Math.random() < 0.5
 }
 
-function num(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min
-}
-
-function ensureUploadsDir() {
-  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
-}
-
-function safeFileName(value) {
-  return String(value).replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
-}
-
-async function downloadCarImage(url, filePath) {
-  if (fs.existsSync(filePath)) return filePath
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`Failed to download image: ${response.status} ${response.statusText}`)
+async function ensureAds(users) {
+  // Ensure users list
+  if (!users || !users.length) {
+    users = await User.find({}).sort({ createdAt: 1 })
   }
-  const buffer = Buffer.from(await response.arrayBuffer())
-  await fs.promises.writeFile(filePath, buffer)
-  return filePath
+
+  // If still empty, create a fallback user
+  if (!users.length) {
+    const password = await bcrypt.hash(PASSWORD, 10)
+    const fallback = await User.create({ username: 'seed-fallback', email: `seed.fallback.${Date.now()}@example.com`, password, ads: [] })
+    users.push(fallback)
+  }
+
+  const currentAds = await Ad.find({}).sort({ createdAt: 1 })
+  const existingCount = currentAds.length
+  const remaining = Math.max(0, BATCH_ADS - existingCount)
+  if (remaining <= 0) return 0
+
+  // Ensure we have enough users to distribute 50-100 ads each
+  // minimal users = ceil(remaining / 100)
+  let userCount = users.length
+  const minUsersNeeded = Math.ceil(remaining / 100)
+  if (userCount < minUsersNeeded) {
+    // create additional users to reach minUsersNeeded
+    const toCreate = minUsersNeeded - userCount
+    for (let i = 0; i < toCreate; i++) {
+      const password = await bcrypt.hash(PASSWORD, 10)
+      const u = await User.create({ username: `seed-dealer-${Date.now()}-${i}`, email: `seed.dealer.${Date.now()}.${i}@example.com`, password, ads: [] })
+      users.push(u)
+    }
+    userCount = users.length
+  }
+
+  // Start with base 50 ads per user
+  const base = 50
+  let targets = Array(userCount).fill(base)
+  let allocated = base * userCount
+  let extra = remaining - allocated
+
+  // Distribute extra up to +50 per user (so each ends up 50-100)
+  let idx = 0
+  while (extra > 0) {
+    const add = Math.min(50, extra, Math.floor(Math.random() * 51))
+    targets[idx % userCount] += add
+    extra -= add
+    idx++
+  }
+
+  // Create ads per user according to targets
+  let created = 0
+  let globalIndex = existingCount
+  for (let u = 0; u < userCount; u++) {
+    const owner = users[u]
+    const ownerId = owner._id || owner
+    const toMake = Math.max(0, Math.min(targets[u], remaining - created))
+    for (let j = 0; j < toMake; j++) {
+      try {
+        const payload = await buildAdDocument(globalIndex + j, ownerId)
+        const ad = await Ad.create(payload)
+        // attach ad to owner
+        try {
+          if (owner.ads && !owner.ads.some(existingId => String(existingId) === String(ad._id))) {
+            owner.ads.push(ad._id)
+            if (typeof owner.save === 'function') await owner.save()
+            else await User.updateOne({ _id: owner._id }, { $addToSet: { ads: ad._id } })
+          }
+        } catch (relErr) {
+          console.warn('Warning: failed to attach ad to owner record', relErr && relErr.message)
+        }
+
+        created += 1
+        if (created % 500 === 0) {
+          console.log(`Inserted ${created} new ads (DB total approx ${existingCount + created})`)
+        }
+      } catch (err) {
+        console.error('Failed creating ad for owner', ownerId, err && err.message)
+        // continue
+      }
+    }
+    globalIndex += toMake
+    if (created >= remaining) break
+  }
+
+  return created
 }
 
-async function seedImages(seedLabel, count = 4) {
-  ensureUploadsDir()
+async function seedImages(count = 4) {
+  const cached = await ensureCarImageCache()
+
   const images = []
+  const shuffled = [...cached].sort(() => Math.random() - 0.5)
   for (let idx = 0; idx < count; idx++) {
-    const sourceUrl = carImageSources[(seedLabel.length + idx) % carImageSources.length]
-    const fileName = safeFileName(`${seedLabel}-${idx}.jpg`)
-    const filePath = path.join(uploadsDir, fileName)
-    await downloadCarImage(sourceUrl, filePath)
-    images.push(`/uploads/${fileName}`)
+    images.push(shuffled[idx % shuffled.length])
   }
   return images
 }
@@ -622,7 +725,7 @@ async function buildAdDocument(index, ownerId) {
   const profileName = `${profile.make} ${profile.model}`
   const title = `${fakerTitlePrefix()} ${profileName} ${fakerTitleSuffix()}`
   const price = String(Math.max(2500, profile.priceBase + num(-5000, 12000)))
-  const images = await seedImages(`${profile.make}-${profile.model}-${index}`, 4)
+  const images = await seedImages(4)
 
   return {
     vehicle: buildVehicle(profile),
@@ -650,50 +753,113 @@ function fakerTitleSuffix() {
   return pick(['for sale', 'ready to drive', 'with warranty', 'dealer maintained', 'full service history', 'special offer'])
 }
 
-async function ensureUsers(faker) {
+async function ensureUsers(faker, targetCount = BATCH_USERS) {
   const users = await User.find({}).sort({ createdAt: 1 })
-  const missing = Math.max(0, TARGET_USERS - users.length)
-
-  let created = 0
   let attempt = 0
-  while (created < missing) {
+
+  while (users.length < targetCount) {
     attempt += 1
     const firstName = faker.person.firstName()
     const lastName = faker.person.lastName()
-    const email = `seed.${firstName.toLowerCase()}.${lastName.toLowerCase()}.${attempt}@example.com`.replace(/[^a-z0-9.@_-]/g, '')
+    const email = `seed.${firstName.toLowerCase()}.${lastName.toLowerCase()}.${Date.now()}.${attempt}@example.com`.replace(/[^a-z0-9.@_-]/g, '')
+    const username = `${firstName} ${lastName} ${Date.now()} ${attempt}`
     const exists = await User.findOne({ email })
     if (exists) continue
 
     const password = await bcrypt.hash(PASSWORD, 10)
-    const user = await User.create({
-      username: `${firstName} ${lastName}`,
-      email,
-      password,
-      ads: []
-    })
-    users.push(user)
-    created += 1
+    try {
+      const user = await User.create({ username, email, password, ads: [] })
+      users.push(user)
+    } catch (err) {
+      if (err && err.code === 11000) continue
+      throw err
+    }
   }
 
   return users
 }
 
 async function ensureAds(users) {
-  const currentAds = await Ad.find({}).sort({ createdAt: 1 })
-  const missing = Math.max(0, TARGET_ADS - currentAds.length)
-
-  for (let i = 0; i < missing; i++) {
-    const owner = users[(currentAds.length + i) % users.length]
-    const payload = await buildAdDocument(currentAds.length + i, owner._id)
-    const ad = await Ad.create(payload)
-
-    if (!owner.ads.some(existingId => String(existingId) === String(ad._id))) {
-      owner.ads.push(ad._id)
-      await owner.save()
-    }
-
-    currentAds.push(ad)
+  if (!users || !users.length) {
+    users = await User.find({}).sort({ createdAt: 1 })
   }
+
+  if (!users.length) {
+    const password = await bcrypt.hash(PASSWORD, 10)
+    const fallback = await User.create({ username: 'seed-fallback', email: `seed.fallback.${Date.now()}@example.com`, password, ads: [] })
+    users.push(fallback)
+  }
+
+  const currentAds = await Ad.find({}).sort({ createdAt: 1 })
+  const existingCount = currentAds.length
+  const remaining = Math.max(0, BATCH_ADS - existingCount)
+  if (remaining <= 0) return 0
+
+  // determine user count to fit 50-100 ads per user
+  const minUsers = Math.ceil(remaining / 100)
+  const maxUsers = Math.floor(remaining / 50) || minUsers
+  const preferred = Math.ceil(remaining / 75)
+  let userCount = Math.min(BATCH_USERS, Math.max(minUsers, Math.min(maxUsers, preferred)))
+
+  // ensure we have enough users
+  if (users.length < userCount) {
+    const toCreate = userCount - users.length
+    let attempt = 0
+    for (let i = 0; i < toCreate; i++) {
+      attempt += 1
+      const firstName = `Dealer${Date.now()}${i}`
+      const email = `seed.dealer.${Date.now()}.${attempt}@example.com`
+      const password = await bcrypt.hash(PASSWORD, 10)
+      const u = await User.create({ username: `seed-dealer-${Date.now()}-${i}`, email, password, ads: [] })
+      users.push(u)
+    }
+  }
+
+  // allocate base 50 per user and distribute extra
+  const base = 50
+  const targets = Array(userCount).fill(base)
+  let allocated = base * userCount
+  let extra = remaining - allocated
+  let idx = 0
+  while (extra > 0) {
+    const add = Math.min(50, extra, Math.floor(Math.random() * 51))
+    targets[idx % userCount] += add
+    extra -= add
+    idx++
+  }
+
+  // create ads
+  let created = 0
+  let globalIndex = existingCount
+  for (let u = 0; u < userCount; u++) {
+    const owner = users[u]
+    const ownerId = owner._id || owner
+    const toMake = Math.max(0, Math.min(targets[u], remaining - created))
+    for (let j = 0; j < toMake; j++) {
+      try {
+        const payload = await buildAdDocument(globalIndex + j, ownerId)
+        const ad = await Ad.create(payload)
+        try {
+          if (owner.ads && !owner.ads.some(existingId => String(existingId) === String(ad._id))) {
+            owner.ads.push(ad._id)
+            if (typeof owner.save === 'function') await owner.save()
+            else await User.updateOne({ _id: owner._id }, { $addToSet: { ads: ad._id } })
+          }
+        } catch (relErr) {
+          console.warn('Warning: failed to attach ad to owner record', relErr && relErr.message)
+        }
+
+        created += 1
+        if (created % 500 === 0) console.log(`Inserted ${created} new ads (DB total approx ${existingCount + created})`)
+      } catch (err) {
+        console.error('Failed creating ad for owner', ownerId, err && err.message)
+      }
+    }
+    globalIndex += toMake
+    if (created >= remaining) break
+  }
+
+  return created
 }
 
 async function seed() {
@@ -704,10 +870,29 @@ async function seed() {
     await mongoose.connect(MONGO_URI, { dbName: DB_NAME })
     console.log(`Connected to ${MONGO_URI} / ${DB_NAME}`)
 
-    const users = await ensureUsers(faker)
-    await ensureAds(users)
+    const existingUsers = await User.countDocuments()
+    const existingAds = await Ad.countDocuments()
 
-    console.log(`Seeder finished: ${users.length} users and ${await Ad.countDocuments()} ads in the database.`)
+    // Determine how many ads remain to create
+    const remainingAds = Math.max(0, BATCH_ADS - existingAds)
+    if (remainingAds === 0) {
+      console.log('No additional ads required. Exiting seeder.')
+    } else {
+      // compute minimal users needed so each user can have between 50 and 100 ads
+      const minUsersNeeded = Math.ceil(remainingAds / 100)
+      const maxUsersAllowed = Math.min(BATCH_USERS, Math.ceil(remainingAds / 50))
+
+      const targetUsers = Math.max(minUsersNeeded, Math.min(BATCH_USERS, maxUsersAllowed || minUsersNeeded))
+
+      const users = await ensureUsers(faker, targetUsers)
+      const insertedAds = await ensureAds(users)
+
+      const finalUsers = await User.countDocuments()
+      const finalAds = await Ad.countDocuments()
+
+      console.log(`Seeder finished. Added users: ${finalUsers - existingUsers}, ads: ${finalAds - existingAds}.`)
+      console.log(`Database totals: users ${existingUsers} -> ${finalUsers}, ads ${existingAds} -> ${finalAds}.`)
+    }
   } finally {
     await mongoose.disconnect().catch(() => {})
   }

@@ -10,4 +10,7 @@ const AdSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 })
 
+AdSchema.index({ createdAt: -1 })
+AdSchema.index({ owner: 1, createdAt: -1 })
+
 module.exports = mongoose.model('Ad', AdSchema)

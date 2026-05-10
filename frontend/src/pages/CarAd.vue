@@ -15,7 +15,7 @@
 							<div class="relative overflow-hidden">
 								<img :src="currentImage" class="w-full h-96 object-cover rounded-t-xl" />
 
-								<button @click="prev" :class="['absolute left-3 top-1/2 -translate-y-1/2 rounded-full p-2 shadow', navButtonClass]">
+							<button @click="prev" :class="['absolute left-3 top-1/2 -translate-y-1/2 rounded-full p-2 shadow', navButtonClass]">
 									<i class="pi pi-chevron-left"></i>
 								</button>
 								<button @click="next" :class="['absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 shadow', navButtonClass]">
@@ -84,9 +84,9 @@
 								</button>
 
 								<div class="flex gap-2">
-									<button class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-3 px-4 border-2 border-purple-600 text-purple-600">
+									<button @click.prevent="togglePark" class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-3 px-4 border-2 border-purple-600 text-purple-600">
 										<i class="pi pi-heart"></i>
-										<span>Park</span>
+										<span>{{ isParked ? 'Parked' : 'Park' }}</span>
 									</button>
 									<button class="inline-flex items-center justify-center gap-2 rounded-lg py-3 px-4 border"> 
 										<i class="pi pi-share-alt"></i>
@@ -347,11 +347,49 @@ export default {
 		}
 
 		const car = ref({ price: '', year: '', make: '', model: '', category: '', headline: '', description: '', options: [], stats: {}, specs: {} })
+		const currentAd = ref(null)
+		const isParked = ref(false)
 		const headlineDisplay = computed(() => {
 			const headline = car.value.headline || ''
 			if (headline.length <= 27) return headline
 			return `${headline.slice(0, 26)}…`
 		})
+
+		function readParkedCars() {
+			try {
+				const parsed = JSON.parse(localStorage.getItem('parkedCars') || '[]')
+				return Array.isArray(parsed) ? parsed : []
+			} catch (err) {
+				return []
+			}
+		}
+
+		function writeParkedCars(items) {
+			localStorage.setItem('parkedCars', JSON.stringify(items))
+		}
+
+		function togglePark() {
+			if (!currentAd.value) return
+			const parked = readParkedCars()
+			const adId = String(currentAd.value._id)
+			const existingIndex = parked.findIndex(item => String(item?._id || item?.id) === adId)
+			if (existingIndex === -1) {
+				parked.unshift({
+					_id: currentAd.value._id,
+					vehicle: currentAd.value.vehicle,
+					details: currentAd.value.details,
+					contact: currentAd.value.contact,
+					images: currentAd.value.images || currentAd.value.details?.images || [],
+					createdAt: currentAd.value.createdAt
+				})
+				writeParkedCars(parked.slice(0, 50))
+				isParked.value = true
+			} else {
+				parked.splice(existingIndex, 1)
+				writeParkedCars(parked)
+				isParked.value = false
+			}
+		}
 
 		// additional mapped fields
 		car.value.mileage = ''
@@ -381,6 +419,7 @@ export default {
 				const data = await res.json()
 				if (!res.ok) throw new Error(data.message || 'Failed to load ad')
 				const ad = data.ad
+				currentAd.value = ad
 				// map fields
 				images.value = ((ad.details && ad.details.images && ad.details.images.length) ? ad.details.images : (ad.images || [])).map(resolveImageUrl)
 				car.value.price = ad.details && ad.details.price ? ad.details.price : (ad.vehicle && ad.vehicle.price ? ad.vehicle.price : '')
@@ -419,6 +458,7 @@ export default {
 				car.value.accidentDamaged = ad.vehicle?.accidentDamaged || ''
 				car.value.roadworthy = ad.vehicle?.roadworthy || ''
 				car.value.nonSmoking = typeof ad.vehicle?.nonSmoking !== 'undefined' ? ad.vehicle.nonSmoking : ad.vehicle?.nonSmoking === true
+				isParked.value = readParkedCars().some(item => String(item?._id || item?.id) === String(ad._id))
 				car.value.inspectionMonth = ad.vehicle?.inspectionMonth || ''
 				car.value.inspectionYear = ad.vehicle?.inspectionYear || ''
 				car.value.inspectionDate = ad.vehicle?.inspectionDate || ''
@@ -741,7 +781,7 @@ export default {
 			else router.push({ name: 'Home' })
 		}
 
-				return { images, index, currentImage, next, prev, setIndex, car, seller, theme, containerClass, cardClass, priceClass, titleClass, statClass, specCardClass, techCardClass, featuresCardClass, descriptionCardClass, technical, visibleTechnical, visibleCount, showMore, showMoreClass, toggleShowMore, features, featuresVisibleCount, featuresShowMore, visibleFeatures, featuresItemClass, featuresCheckClass, featuresToggleClass, toggleFeaturesShowMore, sellerCardClass, navButtonClass, rowBg, featuresRowBg, sellerRef, sellerStyle, description, descriptionVisibleCount, descriptionShowMore, visibleDescription, descriptionToggleClass, toggleDescriptionShowMore, similarRef, similarSectionRef, similarCars, scrollSimilarLeft, scrollSimilarRight, goBack, phoneRevealed, phoneDisplay, togglePhone, sellerShortAddress, headlineDisplay }
+				return { images, index, currentImage, next, prev, setIndex, car, seller, theme, containerClass, cardClass, priceClass, titleClass, statClass, specCardClass, techCardClass, featuresCardClass, descriptionCardClass, technical, visibleTechnical, visibleCount, showMore, showMoreClass, toggleShowMore, features, featuresVisibleCount, featuresShowMore, visibleFeatures, featuresItemClass, featuresCheckClass, featuresToggleClass, toggleFeaturesShowMore, sellerCardClass, navButtonClass, rowBg, featuresRowBg, sellerRef, sellerStyle, description, descriptionVisibleCount, descriptionShowMore, visibleDescription, descriptionToggleClass, toggleDescriptionShowMore, similarRef, similarSectionRef, similarCars, scrollSimilarLeft, scrollSimilarRight, goBack, phoneRevealed, phoneDisplay, togglePhone, sellerShortAddress, headlineDisplay, togglePark, isParked }
 	}
 }
 </script>

@@ -149,6 +149,9 @@ export default {
         if (data.user && data.user.username) {
           localStorage.setItem('username', data.user.username)
         }
+        if (data.user && data.user.email) {
+          localStorage.setItem('email', data.user.email)
+        }
         window.dispatchEvent(new Event('authChanged'))
         this.router.push({ name: 'Home' })
       } catch (err) {
