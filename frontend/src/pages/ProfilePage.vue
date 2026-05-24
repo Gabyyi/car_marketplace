@@ -45,6 +45,14 @@
 							</div>
 						</button>
 
+						<router-link to="/become-dealer" class="mt-2 flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition" :class="idleNavClass">
+							<i class="pi pi-briefcase text-lg"></i>
+							<div>
+								<div class="font-medium">Become a dealer</div>
+								<div class="text-sm text-gray-400">Apply for dealership access</div>
+							</div>
+						</router-link>
+
 						<div class="my-4 border-t border-white/10"></div>
 
 						<button type="button" class="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition" :class="idleNavClass" @click="logout">
@@ -69,7 +77,7 @@
 								<button type="button" class="rounded-xl border border-white/10 px-4 py-2 text-sm text-gray-200 transition hover:bg-white/5" @click="reloadProfile">Refresh</button>
 							</div>
 
-							<div class="grid gap-4 xl:grid-cols-2">
+							<div class="grid gap-4">
 								<div :class="cardClass">
 									<div class="flex items-center gap-4">
 										<div class="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/15 text-blue-300 text-2xl font-semibold">{{ initials }}</div>
@@ -168,19 +176,29 @@
 								<button type="button" class="rounded-xl border border-white/10 px-4 py-2 text-sm text-gray-200 transition hover:bg-white/5" @click="loadParkedCars">Reload</button>
 							</div>
 
-							<div v-if="parkedCars.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-								<article v-for="car in parkedCars" :key="car._id || car.id || car.details?.title" :class="listingCardClass">
-									<img :src="firstImage(car)" class="h-44 w-full rounded-2xl object-cover" />
-									<div class="mt-4 flex items-start justify-between gap-4">
-										<div>
-											<div class="text-lg font-semibold leading-tight">{{ car.details?.title || `${car.vehicle?.make || ''} ${car.vehicle?.model || ''}` }}</div>
-											<div class="mt-1 text-sm text-gray-400">{{ car.vehicle?.make }} {{ car.vehicle?.model }}</div>
+							<div v-if="parkedCars.length" class="space-y-4">
+								<article v-for="car in parkedCars" :key="car._id || car.id || car.details?.title" :class="listingRowClass">
+									<img :src="firstImage(car)" class="h-28 w-36 shrink-0 rounded-2xl object-cover" />
+									<div class="min-w-0 flex-1">
+										<div class="flex flex-wrap items-start justify-between gap-4">
+											<div class="min-w-0">
+												<div class="truncate text-lg font-semibold">
+													{{ car.details?.title || `${car.vehicle?.make || ''} ${car.vehicle?.model || ''}` }}
+												</div>
+												<div class="mt-1 text-sm text-gray-400">
+													{{ car.vehicle?.make || '—' }} {{ car.vehicle?.model || '' }} · {{ car.vehicle?.year || car.vehicle?.regYear || '—' }}
+												</div>
+											</div>
+											<div class="text-right">
+												<div class="text-xl font-semibold text-orange-400">{{ priceDisplay(car) }}</div>
+												<div class="text-xs text-gray-500">Saved to park</div>
+											</div>
 										</div>
-										<div class="text-right text-lg font-semibold text-orange-400">{{ priceDisplay(car) }}</div>
-									</div>
-									<div class="mt-4 flex gap-2">
-										<router-link :to="`/car/${car._id || car.id}`" class="flex-1 rounded-xl border border-white/10 px-4 py-2 text-center text-sm text-gray-200 transition hover:bg-white/5">Open</router-link>
-										<button type="button" class="rounded-xl border border-white/10 px-4 py-2 text-sm text-gray-300 transition hover:bg-white/5" @click="removeParkedCar(car)">Remove</button>
+
+										<div class="mt-4 flex flex-wrap gap-2">
+											<router-link :to="`/car/${car._id || car.id}`" class="rounded-xl border border-white/10 px-4 py-2 text-sm text-gray-200 transition hover:bg-white/5">Open</router-link>
+											<button type="button" class="rounded-xl border border-red-500/40 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/10" @click="removeParkedCar(car)">Remove</button>
+										</div>
 									</div>
 								</article>
 							</div>

@@ -26,40 +26,46 @@
       <div class="mt-5 grid grid-cols-2 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div>
           <label :class="labelClass">Make</label>
-          <select :class="formSelectClass">
-            <option>Any make</option>
-            <option>BMW</option>
-            <option>Audi</option>
-            <option>Mercedes-Benz</option>
+          <select v-model="filters.make" :class="formSelectClass">
+            <option value="">Any make</option>
+            <option v-for="make in availableMakes" :key="make" :value="make">
+              {{ make }}
+            </option>
           </select>
         </div>
 
         <div>
           <label :class="labelClass">Model</label>
-          <select :class="formSelectClass">
-            <option>Any model</option>
-            <option>Series 3</option>
-            <option>A4</option>
-            <option>C-Class</option>
+          <select v-model="filters.model" :class="formSelectClass" :disabled="!filters.make">
+            <option value="">Any model</option>
+            <option v-for="model in availableModels" :key="model" :value="model">
+              {{ model }}
+            </option>
           </select>
         </div>
 
         <div class="col-span-2 md:col-span-1">
           <label :class="labelClass">Price Range</label>
           <div class="grid grid-cols-2 gap-2">
-            <select :class="formSelectClass">
-              <option>Min</option>
-              <option>€1,000</option>
-              <option>€5,000</option>
-              <option>€10,000</option>
-              <option>€20,000</option>
+            <select v-model="filters.priceMin" :class="formSelectClass">
+              <option value="">Min</option>
+              <option value="500">€500</option>
+              <option value="1000">€1,000</option>
+              <option value="2500">€2,500</option>
+              <option value="5000">€5,000</option>
+              <option value="10000">€10,000</option>
+              <option value="15000">€15,000</option>
+              <option value="20000">€20,000</option>
             </select>
-            <select :class="formSelectClass">
-              <option>Max</option>
-              <option>€10,000</option>
-              <option>€20,000</option>
-              <option>€30,000</option>
-              <option>€50,000+</option>
+            <select v-model="filters.priceMax" :class="formSelectClass">
+              <option value="">Max</option>
+              <option value="5000">€5,000</option>
+              <option value="10000">€10,000</option>
+              <option value="15000">€15,000</option>
+              <option value="20000">€20,000</option>
+              <option value="30000">€30,000</option>
+              <option value="50000">€50,000</option>
+              <option value="100000">€100,000+</option>
             </select>
           </div>
         </div>
@@ -67,19 +73,27 @@
         <div class="col-span-2 md:col-span-1">
           <label :class="labelClass">Year Range</label>
           <div class="grid grid-cols-2 gap-2">
-            <select :class="formSelectClass">
-              <option>From</option>
-              <option>2005</option>
-              <option>2010</option>
-              <option>2015</option>
-              <option>2020</option>
+            <select v-model="filters.yearFrom" :class="formSelectClass">
+              <option value="">From</option>
+              <option value="2000">2000</option>
+              <option value="2005">2005</option>
+              <option value="2010">2010</option>
+              <option value="2015">2015</option>
+              <option value="2018">2018</option>
+              <option value="2020">2020</option>
+              <option value="2022">2022</option>
+              <option value="2024">2024</option>
             </select>
-            <select :class="formSelectClass">
-              <option>To</option>
-              <option>2015</option>
-              <option>2018</option>
-              <option>2022</option>
-              <option>2026</option>
+            <select v-model="filters.yearTo" :class="formSelectClass">
+              <option value="">To</option>
+              <option value="2015">2015</option>
+              <option value="2018">2018</option>
+              <option value="2020">2020</option>
+              <option value="2022">2022</option>
+              <option value="2023">2023</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
             </select>
           </div>
         </div>
@@ -87,19 +101,25 @@
         <div class="col-span-2 md:col-span-1">
           <label :class="labelClass">Kilometers Range</label>
           <div class="grid grid-cols-2 gap-2">
-            <select :class="formSelectClass">
-              <option>Min</option>
-              <option>0 km</option>
-              <option>25,000 km</option>
-              <option>50,000 km</option>
-              <option>100,000 km</option>
+            <select v-model="filters.kmMin" :class="formSelectClass">
+              <option value="">Min</option>
+              <option value="0">0 km</option>
+              <option value="10000">10,000 km</option>
+              <option value="25000">25,000 km</option>
+              <option value="50000">50,000 km</option>
+              <option value="75000">75,000 km</option>
+              <option value="100000">100,000 km</option>
+              <option value="150000">150,000 km</option>
             </select>
-            <select :class="formSelectClass">
-              <option>Max</option>
-              <option>50,000 km</option>
-              <option>100,000 km</option>
-              <option>150,000 km</option>
-              <option>200,000+ km</option>
+            <select v-model="filters.kmMax" :class="formSelectClass">
+              <option value="">Max</option>
+              <option value="25000">25,000 km</option>
+              <option value="50000">50,000 km</option>
+              <option value="75000">75,000 km</option>
+              <option value="100000">100,000 km</option>
+              <option value="150000">150,000 km</option>
+              <option value="200000">200,000 km</option>
+              <option value="300000">300,000+ km</option>
             </select>
           </div>
         </div>
@@ -109,7 +129,7 @@
           <div class="grid grid-cols-1 gap-2">
             <button
               type="button"
-              @click="$router.push('/search')"
+              @click="handleSearch"
               class="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-blue-500 px-10 py-2 text-lg font-medium text-white transition hover:bg-blue-600 sm:w-auto"
             >
               <i class="pi pi-search text-lg"></i>
@@ -121,14 +141,14 @@
       </div>
 
         <div class="mt-3 flex items-center justify-center gap-10 md:justify-end md:gap-8">
-          <a href="#" class="inline-flex items-center gap-2 text-base font-medium text-blue-600 hover:text-blue-700 hover:underline">
+          <button @click="resetSearchFilters" type="button" class="inline-flex items-center gap-2 text-base font-medium text-blue-600 hover:text-blue-700 hover:underline">
             <i class="pi pi-refresh"></i>
             <span>Reset</span>
-          </a>
-          <a href="#" class="inline-flex items-center gap-2 text-base font-medium text-blue-600 hover:text-blue-700 hover:underline">
+          </button>
+          <button @click="handleMoreFilters" type="button" class="inline-flex items-center gap-2 text-base font-medium text-blue-600 hover:text-blue-700 hover:underline">
             <i class="pi pi-sliders-h"></i>
             <span>More filters</span>
-          </a>
+          </button>
         </div>
     </article>
 
@@ -173,6 +193,41 @@ export default {
     const { theme } = useTheme()
     const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
     const swipeCars = ref([])
+
+    // Car makes and models
+    const carMakes = {
+      'BMW': ['3 Series', '5 Series', 'X3', 'X5', 'i3', 'M440i', 'Z4'],
+      'Audi': ['A3', 'A4', 'A6', 'A8', 'Q3', 'Q5', 'Q7', 'RS6'],
+      'Mercedes-Benz': ['C-Class', 'E-Class', 'S-Class', 'GLA', 'GLC', 'GLE', 'A-Class'],
+      'Volkswagen': ['Golf', 'Passat', 'Tiguan', 'T-Roc', 'Polo', 'Arteon'],
+      'Ford': ['Fiesta', 'Focus', 'Mondeo', 'Kuga', 'Edge', 'Mustang'],
+      'Toyota': ['Corolla', 'Camry', 'RAV4', 'Highlander', 'Yaris', 'Prius'],
+      'Honda': ['Civic', 'Accord', 'CR-V', 'HR-V', 'Ridgeline', 'Odyssey'],
+      'Hyundai': ['Elantra', 'Sonata', 'Santa Fe', 'Tucson', 'i30', 'Kona'],
+      'Skoda': ['Octavia', 'Superb', 'Fabia', 'Rapid', 'Karoq', 'Kodiaq'],
+      'Renault': ['Clio', 'Megane', 'Scenic', 'Kadjar', 'Captur', 'Duster']
+    }
+
+    // Filters state
+    const filters = ref({
+      make: '',
+      model: '',
+      priceMin: '',
+      priceMax: '',
+      yearFrom: '',
+      yearTo: '',
+      kmMin: '',
+      kmMax: ''
+    })
+
+    // Available makes
+    const availableMakes = computed(() => Object.keys(carMakes).sort())
+
+    // Available models based on selected make
+    const availableModels = computed(() => {
+      if (!filters.value.make) return []
+      return carMakes[filters.value.make] || []
+    })
 
     function resolveImageUrl(url) {
       if (!url) return ''
@@ -232,6 +287,39 @@ export default {
       }
     }
 
+    function handleSearch() {
+      const query = buildSearchQuery()
+      router.push({ name: 'Search', query })
+    }
+
+    function buildSearchQuery() {
+      const query = {}
+      if (filters.value.make) query.make = filters.value.make
+      if (filters.value.model) query.model = filters.value.model
+      if (filters.value.priceMin) query.priceFrom = filters.value.priceMin
+      if (filters.value.priceMax) query.priceTo = filters.value.priceMax
+      if (filters.value.yearFrom) query.registrationFrom = filters.value.yearFrom
+      if (filters.value.yearTo) query.registrationTo = filters.value.yearTo
+      if (filters.value.kmMin) query.mileageFrom = filters.value.kmMin
+      if (filters.value.kmMax) query.mileageTo = filters.value.kmMax
+      return query
+    }
+
+    function resetSearchFilters() {
+      filters.value.make = ''
+      filters.value.model = ''
+      filters.value.priceMin = ''
+      filters.value.priceMax = ''
+      filters.value.yearFrom = ''
+      filters.value.yearTo = ''
+      filters.value.kmMin = ''
+      filters.value.kmMax = ''
+    }
+
+    function handleMoreFilters() {
+      router.push({ name: 'AdvancedSearch', query: buildSearchQuery() })
+    }
+
     const searchCardClass = computed(() => ['rounded-3xl', 'p-5', 'shadow-sm', 'sm:p-6', 'md:p-8', theme.value === 'dark' ? 'border border-gray-700 bg-gray-900' : 'border border-gray-200 bg-white'].join(' '))
     const searchTitleClass = computed(() => ['text-xl', 'font-medium', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
     const topDealsTitleClass = computed(() => ['text-3xl', 'font-medium', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
@@ -239,7 +327,7 @@ export default {
     const labelClass = computed(() => ['mb-2', 'block', 'text-sm', 'font-medium', theme.value === 'dark' ? 'text-gray-300' : 'text-gray-700'].join(' '))
     const formSelectClass = computed(() => ['w-full', 'rounded-lg', 'border', 'px-3', 'py-2', 'text-sm', 'focus:border-blue-500', 'focus:outline-none', theme.value === 'dark' ? 'border-gray-600 bg-gray-800 text-gray-200' : 'border-gray-300 bg-white text-gray-700'].join(' '))
 
-    return { swipeContainer, swipeCars, scrollNext, scrollPrev, searchCardClass, searchTitleClass, topDealsTitleClass, arrowBtnClass, labelClass, formSelectClass, handleSell }
+    return { swipeContainer, swipeCars, scrollNext, scrollPrev, searchCardClass, searchTitleClass, topDealsTitleClass, arrowBtnClass, labelClass, formSelectClass, handleSell, handleSearch, resetSearchFilters, handleMoreFilters, filters, availableMakes, availableModels }
   }
 }
 </script>

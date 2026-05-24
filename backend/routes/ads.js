@@ -59,7 +59,20 @@ function buildSortStage(sort) {
   }
 }
 
-function buildMatchStage({ q, make, model, priceFrom, priceTo, mileageFrom, mileageTo, registrationFrom, registrationTo, accidentFree }) {
+function toLowerStringExpression(path) {
+  return {
+    $toLower: {
+      $convert: {
+        input: { $ifNull: [path, ''] },
+        to: 'string',
+        onError: '',
+        onNull: ''
+      }
+    }
+  }
+}
+
+function buildMatchStage({ q, make, model, priceFrom, priceTo, mileageFrom, mileageTo, registrationFrom, registrationTo, transmission, fuelType, bodyType, doors, color, condition, accidentFree }) {
   const match = {}
 
   if (make) match.normalizedMake = { $regex: `^${escapeRegex(make)}` }
@@ -70,6 +83,12 @@ function buildMatchStage({ q, make, model, priceFrom, priceTo, mileageFrom, mile
   if (Number.isFinite(mileageTo)) match.numericMileage = { ...match.numericMileage, $lte: mileageTo }
   if (Number.isFinite(registrationFrom)) match.numericRegYear = { ...match.numericRegYear, $gte: registrationFrom }
   if (Number.isFinite(registrationTo)) match.numericRegYear = { ...match.numericRegYear, $lte: registrationTo }
+  if (transmission) match.normalizedTransmission = { $regex: `^${escapeRegex(transmission)}$` }
+  if (fuelType) match.normalizedFuelType = { $regex: `^${escapeRegex(fuelType)}$` }
+  if (bodyType) match.normalizedBodyType = { $regex: `^${escapeRegex(bodyType)}$` }
+  if (doors) match.normalizedDoors = { $regex: `^${escapeRegex(doors)}$` }
+  if (color) match.normalizedColor = { $regex: `^${escapeRegex(color)}$` }
+  if (condition) match.normalizedCondition = { $regex: `^${escapeRegex(condition)}$` }
   if (accidentFree) {
     match.$and = [
       { $or: [{ 'vehicle.accidentDamaged': { $in: [null, undefined, '', 'No'] } }, { 'vehicle.accidentDamaged': { $exists: false } }] },
@@ -200,6 +219,12 @@ router.get('/', async (req, res) => {
     const mileageTo = Number(req.query.mileageTo)
     const registrationFrom = Number(req.query.registrationFrom)
     const registrationTo = Number(req.query.registrationTo)
+    const transmission = String(req.query.transmission || '').trim().toLowerCase()
+    const fuelType = String(req.query.fuelType || '').trim().toLowerCase()
+    const bodyType = String(req.query.bodyType || '').trim().toLowerCase()
+    const doors = String(req.query.doors || '').trim().toLowerCase()
+    const color = String(req.query.color || '').trim().toLowerCase()
+    const condition = String(req.query.condition || '').trim().toLowerCase()
     const accidentFree = String(req.query.accidentFree || '') === 'true'
     const sort = String(req.query.sort || 'standard')
 
@@ -208,6 +233,12 @@ router.get('/', async (req, res) => {
         $addFields: {
           normalizedMake: { $toLower: { $ifNull: ['$vehicle.make', ''] } },
           normalizedModel: { $toLower: { $ifNull: ['$vehicle.model', ''] } },
+          normalizedTransmission: toLowerStringExpression('$vehicle.transmission'),
+          normalizedFuelType: toLowerStringExpression('$vehicle.fuel'),
+          normalizedBodyType: toLowerStringExpression({ $ifNull: ['$vehicle.bodyType', { $ifNull: ['$vehicle.category', '$vehicle.subcategory'] }] }),
+          normalizedDoors: toLowerStringExpression('$vehicle.doors'),
+          normalizedColor: toLowerStringExpression({ $ifNull: ['$vehicle.color', '$vehicle.exteriorColor'] }),
+          normalizedCondition: toLowerStringExpression({ $ifNull: ['$vehicle.condition', '$details.condition'] }),
           normalizedTitle: { $toLower: { $ifNull: ['$details.title', ''] } },
           normalizedDescription: { $toLower: { $ifNull: ['$details.description', ''] } },
           numericPrice: toNumberExpression('$details.price'),
@@ -215,7 +246,7 @@ router.get('/', async (req, res) => {
           numericRegYear: toNumberExpression({ $ifNull: ['$vehicle.regYear', '$vehicle.year'] })
         }
       },
-      { $match: buildMatchStage({ q, make, model, priceFrom, priceTo, mileageFrom, mileageTo, registrationFrom, registrationTo, accidentFree }) },
+      { $match: buildMatchStage({ q, make, model, priceFrom, priceTo, mileageFrom, mileageTo, registrationFrom, registrationTo, transmission, fuelType, bodyType, doors, color, condition, accidentFree }) },
       {
         $facet: {
           metadata: [{ $count: 'total' }],
@@ -236,6 +267,12 @@ router.get('/', async (req, res) => {
               $project: {
                 normalizedMake: 0,
                 normalizedModel: 0,
+                normalizedTransmission: 0,
+                normalizedFuelType: 0,
+                normalizedBodyType: 0,
+                normalizedDoors: 0,
+                normalizedColor: 0,
+                normalizedCondition: 0,
                 normalizedTitle: 0,
                 normalizedDescription: 0,
                 numericPrice: 0,

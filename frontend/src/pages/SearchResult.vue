@@ -7,7 +7,7 @@
 					<div class="sticky top-8">
 						<div :class="sidebarCardClasses">
 							<div class="mb-4">
-								<button type="button" :class="moreFiltersBtnClass">
+								<button type="button" :class="moreFiltersBtnClass" @click="handleMoreFilters">
 									<i class="pi pi-sliders-h mr-2"></i>
 									More Filters
 								</button>
@@ -16,7 +16,7 @@
 							<label class="block text-sm mb-2" :class="theme.value === 'dark' ? 'text-gray-300' : 'text-gray-200'">Make</label>
 							<select v-model="filters.make" :class="inputClass + ' mb-3'">
 								<option value="">Any</option>
-								<template v-for="(m, mi) in makeOptions" :key="mi">
+								<template v-for="(m, mi) in availableMakes" :key="mi">
 									<option :value="m">{{ m }}</option>
 								</template>
 							</select>
@@ -24,7 +24,7 @@
 							<label class="block text-sm mb-2" :class="theme.value === 'dark' ? 'text-gray-300' : 'text-gray-200'">Model</label>
 							<select v-model="filters.model" :class="inputClass + ' mb-3'">
 								<option value="">Any</option>
-								<template v-for="(m, mi) in modelOptions" :key="mi">
+								<template v-for="(m, mi) in availableModels" :key="mi">
 									<option :value="m">{{ m }}</option>
 								</template>
 							</select>
@@ -108,7 +108,7 @@
 									</div>
 								</div>
 								<div class="flex items-center gap-3 p-4">
-									<button @click="openMobileFilters" :class="mobileMoreFiltersBtnClass + ' md:hidden'">
+									<button @click="handleMoreFilters" :class="mobileMoreFiltersBtnClass + ' md:hidden'">
 										<i class="pi pi-sliders-h mr-2"></i>
 										More
 									</button>
@@ -152,10 +152,13 @@
 
 <script setup>
 import { reactive, computed, ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import CarAdCard from '../components/CarAdCard.vue'
 import { useTheme } from '../composables/useTheme'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+const route = useRoute()
+const router = useRouter()
 
 const { theme } = useTheme()
 
@@ -250,6 +253,21 @@ function mapAdToCard(ad) {
 
 const displayedAds = computed(() => ads.value.map(mapAdToCard))
 
+const carMakes = {
+	BMW: ['3 Series', '5 Series', 'X3', 'X5', 'i3', 'M440i', 'Z4'],
+	Audi: ['A3', 'A4', 'A6', 'A8', 'Q3', 'Q5', 'Q7', 'RS6'],
+	'Mercedes-Benz': ['C-Class', 'E-Class', 'S-Class', 'GLA', 'GLC', 'GLE', 'A-Class'],
+	Volkswagen: ['Golf', 'Passat', 'Tiguan', 'T-Roc', 'Polo', 'Arteon'],
+	Ford: ['Fiesta', 'Focus', 'Mondeo', 'Kuga', 'Edge', 'Mustang'],
+	Toyota: ['Corolla', 'Camry', 'RAV4', 'Highlander', 'Yaris', 'Prius'],
+	Honda: ['Civic', 'Accord', 'CR-V', 'HR-V', 'Ridgeline', 'Odyssey'],
+	Hyundai: ['Elantra', 'Sonata', 'Santa Fe', 'Tucson', 'i30', 'Kona'],
+	Skoda: ['Octavia', 'Superb', 'Fabia', 'Rapid', 'Karoq', 'Kodiaq'],
+	Renault: ['Clio', 'Megane', 'Scenic', 'Kadjar', 'Captur', 'Duster']
+}
+
+const availableMakes = computed(() => Object.keys(carMakes).sort())
+
 const makeOptions = computed(() => {
 	const set = new Set()
 	ads.value.forEach(a => {
@@ -259,7 +277,7 @@ const makeOptions = computed(() => {
 	return Array.from(set)
 })
 
-const modelOptions = computed(() => {
+	const modelOptions = computed(() => {
 	const set = new Set()
 	ads.value.forEach(a => {
 		const make = String(a?.vehicle?.make || '').trim()
@@ -270,6 +288,7 @@ const modelOptions = computed(() => {
 	})
 	return Array.from(set)
 })
+
 const filters = reactive({
 	q: '',
 	make: '',
@@ -280,8 +299,25 @@ const filters = reactive({
 	registrationTo: '',
 	mileageFrom: '',
 	mileageTo: '',
+	transmission: '',
+	fuelType: '',
+	bodyType: '',
+	doors: '',
+	color: '',
+	condition: '',
 	hasBatteryCert: false,
 	accidentFree: false
+})
+
+const availableModels = computed(() => {
+	if (!filters.make) return []
+	return carMakes[filters.make] || []
+})
+
+watch(() => filters.make, () => {
+	if (filters.model && !availableModels.value.includes(filters.model)) {
+		filters.model = ''
+	}
 })
 
 const sortOrder = ref('standard')
@@ -293,9 +329,7 @@ const loading = ref(false)
 const error = ref('')
 const mobileFiltersOpen = ref(false)
 
-const makeModel = computed(() => 'cars')
-
-const headerText = computed(() => `${totalAds.value} ${makeModel.value} found`)
+const headerText = computed(() => `${totalAds.value} cars found`)
 
 const appliedFilters = computed(() => {
 	const list = []
@@ -327,8 +361,35 @@ function buildQuery() {
 	if (filters.registrationTo) params.set('registrationTo', filters.registrationTo)
 	if (filters.mileageFrom) params.set('mileageFrom', filters.mileageFrom)
 	if (filters.mileageTo) params.set('mileageTo', filters.mileageTo)
+	if (filters.transmission) params.set('transmission', filters.transmission)
+	if (filters.fuelType) params.set('fuelType', filters.fuelType)
+	if (filters.bodyType) params.set('bodyType', filters.bodyType)
+	if (filters.doors) params.set('doors', filters.doors)
+	if (filters.color) params.set('color', filters.color)
+	if (filters.condition) params.set('condition', filters.condition)
 	if (filters.accidentFree) params.set('accidentFree', 'true')
 	return params.toString()
+}
+
+function buildAdvancedQuery() {
+	const query = {}
+	if (filters.q) query.q = filters.q
+	if (filters.make) query.make = filters.make
+	if (filters.model) query.model = filters.model
+	if (filters.priceFrom) query.priceFrom = filters.priceFrom
+	if (filters.priceTo) query.priceTo = filters.priceTo
+	if (filters.registrationFrom) query.registrationFrom = filters.registrationFrom
+	if (filters.registrationTo) query.registrationTo = filters.registrationTo
+	if (filters.mileageFrom) query.mileageFrom = filters.mileageFrom
+	if (filters.mileageTo) query.mileageTo = filters.mileageTo
+	if (filters.transmission) query.transmission = filters.transmission
+	if (filters.fuelType) query.fuelType = filters.fuelType
+	if (filters.bodyType) query.bodyType = filters.bodyType
+	if (filters.doors) query.doors = filters.doors
+	if (filters.color) query.color = filters.color
+	if (filters.condition) query.condition = filters.condition
+	if (filters.accidentFree) query.accidentFree = 'true'
+	return query
 }
 
 function scrollToTop() {
@@ -377,11 +438,21 @@ function resetFilters() {
 	filters.registrationTo = ''
 	filters.mileageFrom = ''
 	filters.mileageTo = ''
+	filters.transmission = ''
+	filters.fuelType = ''
+	filters.bodyType = ''
+	filters.doors = ''
+	filters.color = ''
+	filters.condition = ''
 	filters.hasBatteryCert = false
 	filters.accidentFree = false
 	currentPage.value = 1
 	loadAds()
 }
+
+	function handleMoreFilters() {
+		router.push({ name: 'AdvancedSearch', query: buildAdvancedQuery() })
+	}
 
 function nextPage() {
 	if (currentPage.value >= totalPages.value) return
@@ -406,7 +477,29 @@ watch(sortOrder, () => {
 })
 
 onMounted(() => {
+	// Read query parameters and populate filters
+	if (route.query.make) filters.make = route.query.make
+	if (route.query.model) filters.model = route.query.model
+	if (route.query.priceFrom) filters.priceFrom = route.query.priceFrom
+	if (route.query.priceTo) filters.priceTo = route.query.priceTo
+	if (route.query.registrationFrom) filters.registrationFrom = route.query.registrationFrom
+	if (route.query.registrationTo) filters.registrationTo = route.query.registrationTo
+	if (route.query.mileageFrom) filters.mileageFrom = route.query.mileageFrom
+	if (route.query.mileageTo) filters.mileageTo = route.query.mileageTo
+	if (route.query.transmission) filters.transmission = route.query.transmission
+	if (route.query.fuelType) filters.fuelType = route.query.fuelType
+	if (route.query.bodyType) filters.bodyType = route.query.bodyType
+	if (route.query.doors) filters.doors = route.query.doors
+	if (route.query.color) filters.color = route.query.color
+	if (route.query.condition) filters.condition = route.query.condition
+	if (route.query.q) filters.q = route.query.q
 	loadAds()
+})
+
+watch(() => filters.make, () => {
+	if (filters.model && !availableModels.value.includes(filters.model)) {
+		filters.model = ''
+	}
 })
 </script>
 
