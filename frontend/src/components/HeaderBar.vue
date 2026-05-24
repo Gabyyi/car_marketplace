@@ -16,6 +16,14 @@
         >
           <i class="pi pi-bell text-lg"></i>
         </button>
+        <router-link
+          v-if="isAdmin"
+          to="/admin"
+          :class="notifBtnClass"
+          aria-label="Admin panel"
+        >
+          <i class="pi pi-shield text-lg"></i>
+        </router-link>
         <button
           v-if="isLoggedIn"
           type="button"
@@ -40,14 +48,27 @@ const props = defineProps({ hideActions: { type: Boolean, default: false } })
 const { theme } = useTheme()
 const router = useRouter()
 
+const token = ref(localStorage.getItem('token'))
 const username = ref(localStorage.getItem('username'))
-const isLoggedIn = computed(() => !!username.value)
+const role = ref(localStorage.getItem('role'))
+const isLoggedIn = computed(() => !!token.value)
+const isAdmin = computed(() => !!token.value && role.value === 'admin')
 
 function onAuthChanged() {
+  token.value = localStorage.getItem('token')
   username.value = localStorage.getItem('username')
+  role.value = localStorage.getItem('role')
+
+  if (!token.value) {
+    username.value = null
+    role.value = null
+    localStorage.removeItem('username')
+    localStorage.removeItem('role')
+  }
 }
 
 onMounted(() => {
+  onAuthChanged()
   window.addEventListener('authChanged', onAuthChanged)
 })
 onUnmounted(() => {

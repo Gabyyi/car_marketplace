@@ -84,6 +84,7 @@ export default {
   setup() {
     const router = useRouter()
     const { theme } = useTheme()
+    const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
     const containerClass = computed(() => ['flex items-center justify-center rounded-lg p-4', theme.value === 'dark' ? 'bg-gray-900' : 'bg-white'].join(' '))
     const cardClass = computed(() => ['w-full max-w-sm md:max-w-4xl rounded-xl shadow-lg overflow-hidden relative', theme.value === 'dark' ? 'bg-gray-900 border border-gray-700' : 'bg-white'].join(' '))
@@ -95,12 +96,12 @@ export default {
     const socialBtnClass = computed(() => ['flex items-center justify-center gap-2 border rounded-lg py-2 text-sm', theme.value === 'dark' ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-gray-200 bg-white'].join(' '))
     const rightPanelTextClass = computed(() => ['mr-6 flex flex-col items-start mt-8 max-w-xs', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
 
-    return { router, containerClass, cardClass, headingClass, subTextClass, labelClass, inputClass, primaryBtnClass, socialBtnClass, rightPanelTextClass }
+    return { router, apiBaseUrl, containerClass, cardClass, headingClass, subTextClass, labelClass, inputClass, primaryBtnClass, socialBtnClass, rightPanelTextClass }
   },
   methods: {
     async onSubmit() {
       try {
-        const res = await fetch('http://localhost:4000/api/auth/login', {
+        const res = await fetch(`${this.apiBaseUrl}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: this.email, password: this.password })
@@ -113,6 +114,19 @@ export default {
         }
         if (data.user && data.user.email) {
           localStorage.setItem('email', data.user.email)
+        }
+        if (data.user && data.user.role) {
+          localStorage.setItem('role', data.user.role)
+        } else {
+          localStorage.removeItem('role')
+        }
+        if (data.user && data.user.dealerStatus) {
+          localStorage.setItem('dealerStatus', data.user.dealerStatus)
+        } else {
+          localStorage.removeItem('dealerStatus')
+        }
+        if (data.user && Array.isArray(data.user.parkedCars)) {
+          localStorage.setItem('parkedCars', JSON.stringify(data.user.parkedCars))
         }
         // notify other components in this window
         window.dispatchEvent(new Event('authChanged'))

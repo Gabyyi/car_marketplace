@@ -15,3 +15,25 @@ If you click on an ad from a private seller at the bottom you will see similar c
 If you click on an ad form a dealership at the bottom you will see different ads from the same dealer.
 
 In your profile page you will be able to manage your ads and your saved cars.
+
+## Docker
+
+Run the full stack with:
+
+```bash
+docker compose up --build
+```
+
+Update changes
+
+```bash
+docker compose build backend frontend
+docker compose up -d backend frontend
+```
+
+The default admin account is created automatically on startup:
+
+- Email: `admin@carbuy.ro`
+- Password: `admin123`
+
+Use the admin dashboard to review dealer applications, manage users, and delete ads.

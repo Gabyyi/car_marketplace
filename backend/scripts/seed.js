@@ -162,6 +162,10 @@ function bool() {
   return Math.random() < 0.5
 }
 
+function num(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
 async function ensureAds(users) {
   // Ensure users list
   if (!users || !users.length) {
@@ -171,7 +175,7 @@ async function ensureAds(users) {
   // If still empty, create a fallback user
   if (!users.length) {
     const password = await bcrypt.hash(PASSWORD, 10)
-    const fallback = await User.create({ username: 'seed-fallback', email: `seed.fallback.${Date.now()}@example.com`, password, ads: [] })
+    const fallback = await User.create({ username: 'seed-fallback', email: `seed.fallback.${Date.now()}@example.com`, password, role: 'user', ads: [] })
     users.push(fallback)
   }
 
@@ -189,7 +193,7 @@ async function ensureAds(users) {
     const toCreate = minUsersNeeded - userCount
     for (let i = 0; i < toCreate; i++) {
       const password = await bcrypt.hash(PASSWORD, 10)
-      const u = await User.create({ username: `seed-dealer-${Date.now()}-${i}`, email: `seed.dealer.${Date.now()}.${i}@example.com`, password, ads: [] })
+      const u = await User.create({ username: `seed-dealer-${Date.now()}-${i}`, email: `seed.dealer.${Date.now()}.${i}@example.com`, password, role: 'dealer', ads: [] })
       users.push(u)
     }
     userCount = users.length
@@ -757,6 +761,14 @@ async function ensureUsers(faker, targetCount = BATCH_USERS) {
   const users = await User.find({}).sort({ createdAt: 1 })
   let attempt = 0
 
+  const adminEmail = String(process.env.ADMIN_EMAIL || 'admin@carbuy.ro').toLowerCase()
+  const adminExists = users.some((user) => String(user.email || '').toLowerCase() === adminEmail)
+  if (!adminExists) {
+    const adminPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD || PASSWORD, 10)
+    const adminUser = await User.create({ username: 'Admin', email: adminEmail, password: adminPassword, role: 'admin', ads: [] })
+    users.unshift(adminUser)
+  }
+
   while (users.length < targetCount) {
     attempt += 1
     const firstName = faker.person.firstName()
@@ -768,7 +780,7 @@ async function ensureUsers(faker, targetCount = BATCH_USERS) {
 
     const password = await bcrypt.hash(PASSWORD, 10)
     try {
-      const user = await User.create({ username, email, password, ads: [] })
+      const user = await User.create({ username, email, password, role: 'user', ads: [] })
       users.push(user)
     } catch (err) {
       if (err && err.code === 11000) continue
@@ -786,7 +798,7 @@ async function ensureAds(users) {
 
   if (!users.length) {
     const password = await bcrypt.hash(PASSWORD, 10)
-    const fallback = await User.create({ username: 'seed-fallback', email: `seed.fallback.${Date.now()}@example.com`, password, ads: [] })
+    const fallback = await User.create({ username: 'seed-fallback', email: `seed.fallback.${Date.now()}@example.com`, password, role: 'user', ads: [] })
     users.push(fallback)
   }
 
@@ -810,7 +822,7 @@ async function ensureAds(users) {
       const firstName = `Dealer${Date.now()}${i}`
       const email = `seed.dealer.${Date.now()}.${attempt}@example.com`
       const password = await bcrypt.hash(PASSWORD, 10)
-      const u = await User.create({ username: `seed-dealer-${Date.now()}-${i}`, email, password, ads: [] })
+      const u = await User.create({ username: `seed-dealer-${Date.now()}-${i}`, email, password, role: 'dealer', ads: [] })
       users.push(u)
     }
   }

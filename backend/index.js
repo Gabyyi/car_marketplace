@@ -2,6 +2,8 @@ const express = require('express')
 const cors = require('cors')
 const dotenv = require('dotenv')
 const mongoose = require('mongoose')
+const bcrypt = require('bcryptjs')
+const User = require('./models/User')
 
 dotenv.config()
 
@@ -29,9 +31,15 @@ async function start() {
     process.exit(1)
   }
 
+  await ensureAdminAccount()
+
   // Routes
   const authRouter = require('./routes/auth')
   app.use('/api/auth', authRouter)
+  const dealerApplicationsRouter = require('./routes/dealerApplications')
+  app.use('/api/dealer-applications', dealerApplicationsRouter)
+  const adminRouter = require('./routes/admin')
+  app.use('/api/admin', adminRouter)
   const adsRouter = require('./routes/ads')
   app.use('/api/ads', adsRouter)
 
@@ -41,6 +49,29 @@ async function start() {
 
   // console.log('Connected to DB:', mongoose.connection.name)
   // console.log('MONGO_URI:', process.env.MONGO_URI)
+}
+
+async function ensureAdminAccount() {
+  const adminEmail = String(process.env.ADMIN_EMAIL || 'admin@carbuy.ro').toLowerCase()
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
+  const existing = await User.findOne({ email: adminEmail })
+  if (existing) {
+    if ((existing.role || 'user') !== 'admin') {
+      existing.role = 'admin'
+      await existing.save()
+    }
+    return
+  }
+
+  const passwordHash = await bcrypt.hash(adminPassword, 10)
+  await User.create({
+    username: 'Admin',
+    email: adminEmail,
+    password: passwordHash,
+    role: 'admin',
+    ads: []
+  })
+  console.log(`Created default admin account for ${adminEmail}`)
 }
 
 start()

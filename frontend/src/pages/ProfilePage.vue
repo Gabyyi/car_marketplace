@@ -86,6 +86,10 @@
 											<div class="text-sm text-gray-400">Member since {{ joinedAt }}</div>
 										</div>
 									</div>
+									<div class="mt-4 inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm" :class="dealerStatusClass">
+										<span class="font-medium">Dealer status:</span>
+										<span>{{ dealerStatusLabel }}</span>
+									</div>
 									<div class="mt-5 grid gap-4">
 										<div>
 											<label class="mb-2 block text-sm text-gray-400">Email</label>
@@ -177,16 +181,16 @@
 							</div>
 
 							<div v-if="parkedCars.length" class="space-y-4">
-								<article v-for="car in parkedCars" :key="car._id || car.id || car.details?.title" :class="listingRowClass">
+								<article v-for="car in parkedCars" :key="car._id || car.id || car.details?.title || parkedTitle(car)" :class="listingRowClass">
 									<img :src="firstImage(car)" class="h-28 w-36 shrink-0 rounded-2xl object-cover" />
 									<div class="min-w-0 flex-1">
 										<div class="flex flex-wrap items-start justify-between gap-4">
 											<div class="min-w-0">
 												<div class="truncate text-lg font-semibold">
-													{{ car.details?.title || `${car.vehicle?.make || ''} ${car.vehicle?.model || ''}` }}
+													{{ parkedTitle(car) }}
 												</div>
 												<div class="mt-1 text-sm text-gray-400">
-													{{ car.vehicle?.make || '—' }} {{ car.vehicle?.model || '' }} · {{ car.vehicle?.year || car.vehicle?.regYear || '—' }}
+													{{ parkedSubtitle(car) }}
 												</div>
 											</div>
 											<div class="text-right">
@@ -285,6 +289,7 @@ const deleteAccountLoading = ref(false)
 const profile = reactive({
   username: localStorage.getItem('username') || '',
   email: localStorage.getItem('email') || '',
+	dealerStatus: localStorage.getItem('dealerStatus') || 'none',
   phone: localStorage.getItem('profilePhone') || '',
   address: localStorage.getItem('profileAddress') || ''
 })
@@ -297,6 +302,9 @@ function authHeaders() {
 function onAuthChanged() {
   profile.username = localStorage.getItem('username') || profile.username
   profile.email = localStorage.getItem('email') || profile.email
+	profile.dealerStatus = localStorage.getItem('dealerStatus') || profile.dealerStatus
+	profile.phone = localStorage.getItem('profilePhone') || profile.phone
+	profile.address = localStorage.getItem('profileAddress') || profile.address
   loadParkedCars()
   loadMyAds()
 }
@@ -304,6 +312,18 @@ function onAuthChanged() {
 const isLoggedIn = computed(() => !!localStorage.getItem('token'))
 const initials = computed(() => (profile.username || 'U').trim().slice(0, 1).toUpperCase())
 const joinedAt = computed(() => profile.email ? 'active account' : '—')
+const dealerStatusLabel = computed(() => {
+	if (profile.dealerStatus === 'approved') return 'Approved dealer'
+	if (profile.dealerStatus === 'pending') return 'Pending review'
+	if (profile.dealerStatus === 'rejected') return 'Rejected'
+	return 'Not applied'
+})
+const dealerStatusClass = computed(() => {
+	if (profile.dealerStatus === 'approved') return theme.value === 'dark' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+	if (profile.dealerStatus === 'pending') return theme.value === 'dark' ? 'border-amber-500/30 bg-amber-500/10 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-700'
+	if (profile.dealerStatus === 'rejected') return theme.value === 'dark' ? 'border-rose-500/30 bg-rose-500/10 text-rose-200' : 'border-rose-200 bg-rose-50 text-rose-700'
+	return theme.value === 'dark' ? 'border-white/10 bg-white/5 text-gray-300' : 'border-gray-200 bg-slate-50 text-gray-600'
+})
 
 const pageClass = computed(() => ['min-h-screen', theme.value === 'dark' ? 'text-gray-100' : 'text-gray-900'].join(' '))
 const emptyAuthCardClass = computed(() => ['rounded-3xl border p-8', theme.value === 'dark' ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-white shadow-sm'].join(' '))
@@ -326,6 +346,18 @@ function resolveImageUrl(url) {
 
 function firstImage(item) {
   return resolveImageUrl(item?.images?.[0] || item?.details?.images?.[0] || item?.image || item?.thumbnail)
+}
+
+function parkedTitle(item) {
+	return item?.details?.title || `${item?.vehicle?.make || item?.make || 'Car'} ${item?.vehicle?.model || item?.model || 'Ad'}`.trim()
+}
+
+function parkedSubtitle(item) {
+	const make = item?.vehicle?.make || item?.make || '—'
+	const model = item?.vehicle?.model || item?.model || ''
+	const year = item?.vehicle?.year || item?.vehicle?.regYear || item?.year || item?.regYear || '—'
+	const parts = [`${make} ${model}`.trim(), year].filter(Boolean)
+	return parts.length ? `${parts.join(' · ')}` : '—'
 }
 
 function priceDisplay(item) {
@@ -351,8 +383,14 @@ async function reloadProfile() {
 
     profile.username = data.user?.username || profile.username
     profile.email = data.user?.email || profile.email
+		profile.dealerStatus = data.user?.dealerStatus || profile.dealerStatus
+		profile.phone = data.user?.phone || profile.phone
+		profile.address = data.user?.address || profile.address
     localStorage.setItem('username', profile.username)
     localStorage.setItem('email', profile.email)
+		localStorage.setItem('dealerStatus', profile.dealerStatus)
+		localStorage.setItem('profilePhone', profile.phone || '')
+		localStorage.setItem('profileAddress', profile.address || '')
     window.dispatchEvent(new Event('authChanged'))
   } catch (err) {
     console.error(err)
@@ -380,22 +418,70 @@ async function loadMyAds() {
   }
 }
 
-function loadParkedCars() {
-  try {
-    const stored = JSON.parse(localStorage.getItem('parkedCars') || '[]')
-    parkedCars.value = Array.isArray(stored) ? stored : []
-  } catch (err) {
-    parkedCars.value = []
-  }
+async function loadParkedCars() {
+	const token = localStorage.getItem('token')
+	if (!token) {
+		try {
+			const stored = JSON.parse(localStorage.getItem('parkedCars') || '[]')
+			parkedCars.value = Array.isArray(stored) ? stored : []
+		} catch (err) {
+			parkedCars.value = []
+		}
+		return
+	}
+
+	// fetch from server for logged-in users and fall back to localStorage
+	try {
+		const response = await fetch(`${apiBaseUrl}/api/auth/parked-cars`, { headers: authHeaders() })
+		const data = await response.json()
+		if (response.ok && Array.isArray(data.parkedCars)) {
+			parkedCars.value = data.parkedCars
+			localStorage.setItem('parkedCars', JSON.stringify(parkedCars.value))
+			return
+		}
+	} catch (err) {
+		console.error('Failed to load parked cars from server', err)
+	}
+
+	try {
+		const stored = JSON.parse(localStorage.getItem('parkedCars') || '[]')
+		parkedCars.value = Array.isArray(stored) ? stored : []
+	} catch (err) {
+		parkedCars.value = []
+	}
 }
 
-function saveProfile() {
-  localStorage.setItem('username', profile.username || '')
-  localStorage.setItem('email', profile.email || '')
-  localStorage.setItem('profilePhone', profile.phone || '')
-  localStorage.setItem('profileAddress', profile.address || '')
-  window.dispatchEvent(new Event('authChanged'))
-  alert('Profile saved')
+async function saveProfile() {
+	try {
+		const response = await fetch(`${apiBaseUrl}/api/auth/profile`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json', ...authHeaders() },
+			body: JSON.stringify({
+				username: profile.username,
+				email: profile.email,
+				phone: profile.phone,
+				address: profile.address
+			})
+		})
+		const data = await response.json()
+		if (!response.ok) throw new Error(data.message || 'Failed to save profile')
+
+		profile.username = data.user?.username || profile.username
+		profile.email = data.user?.email || profile.email
+		profile.phone = data.user?.phone || profile.phone
+		profile.address = data.user?.address || profile.address
+		profile.dealerStatus = data.user?.dealerStatus || profile.dealerStatus
+
+		localStorage.setItem('username', profile.username || '')
+		localStorage.setItem('email', profile.email || '')
+	localStorage.setItem('dealerStatus', profile.dealerStatus || 'none')
+		localStorage.setItem('profilePhone', profile.phone || '')
+		localStorage.setItem('profileAddress', profile.address || '')
+		window.dispatchEvent(new Event('authChanged'))
+		alert('Profile saved')
+	} catch (err) {
+		alert(err.message || 'Failed to save profile')
+	}
 }
 
 function openChangePassword() {
@@ -464,6 +550,7 @@ async function confirmDeleteAccount() {
 		localStorage.removeItem('token')
 		localStorage.removeItem('username')
 		localStorage.removeItem('email')
+		localStorage.removeItem('dealerStatus')
 		localStorage.removeItem('profilePhone')
 		localStorage.removeItem('profileAddress')
 		window.dispatchEvent(new Event('authChanged'))
@@ -495,15 +582,29 @@ function editAd(adId) {
   router.push({ name: 'PostAd', query: { edit: adId } })
 }
 
-function removeParkedCar(car) {
-  parkedCars.value = parkedCars.value.filter(item => String(item._id || item.id) !== String(car._id || car.id))
-  localStorage.setItem('parkedCars', JSON.stringify(parkedCars.value))
+async function removeParkedCar(car) {
+	parkedCars.value = parkedCars.value.filter(item => String(item._id || item.id) !== String(car._id || car.id))
+	localStorage.setItem('parkedCars', JSON.stringify(parkedCars.value))
+	const token = localStorage.getItem('token')
+	if (!token) return
+	try {
+		await fetch(`${apiBaseUrl}/api/auth/parked-cars`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json', ...authHeaders() },
+			body: JSON.stringify({ parkedCars: parkedCars.value })
+		})
+	} catch (err) {
+		console.error('Failed to sync parked cars after removal', err)
+	}
 }
 
 function logout() {
 	localStorage.removeItem('token')
 	localStorage.removeItem('username')
 	localStorage.removeItem('email')
+	localStorage.removeItem('dealerStatus')
+	localStorage.removeItem('profilePhone')
+	localStorage.removeItem('profileAddress')
 	window.dispatchEvent(new Event('authChanged'))
 	router.push({ name: 'Home' })
 }

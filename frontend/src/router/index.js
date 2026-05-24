@@ -6,6 +6,7 @@ import CarAdPage from '../pages/CarAd.vue'
 import SearchResult from '../pages/SearchResult.vue'
 import AdvancedSearch from '../pages/AdvancedSearch.vue'
 import BecomeDealer from '../pages/BecomeDealer.vue'
+import AdminPage from '../pages/AdminPage.vue'
 import ProfilePage from '../pages/ProfilePage.vue'
 import PostAdPage from '../pages/PostAd.vue'
 
@@ -14,6 +15,7 @@ const routes = [
   { path: '/search', name: 'Search', component: SearchResult },
   { path: '/advanced-search', name: 'AdvancedSearch', component: AdvancedSearch },
   { path: '/become-dealer', name: 'BecomeDealer', component: BecomeDealer },
+  { path: '/admin', name: 'Admin', component: AdminPage },
   { path: '/login', name: 'Login', component: LoginPage },
   { path: '/signup', name: 'Signup', component: SignupPage },
   { path: '/car/:id', name: 'CarAd', component: CarAdPage },

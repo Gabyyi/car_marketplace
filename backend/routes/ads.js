@@ -373,7 +373,7 @@ router.get('/random-list', async (req, res) => {
 // GET /api/ads/:id - get single ad (public)
 router.get('/:id', async (req, res) => {
   try {
-    const ad = await Ad.findById(req.params.id).populate('owner', 'username email')
+    const ad = await Ad.findById(req.params.id).populate('owner', 'username email role dealerStatus')
     if (!ad) return res.status(404).json({ message: 'Ad not found' })
     res.json({ ad })
   } catch (err) {

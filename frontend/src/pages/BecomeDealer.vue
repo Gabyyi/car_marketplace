@@ -85,6 +85,17 @@
               </div>
 
               <div>
+                <label :class="labelClass">Tell us about your dealership</label>
+                <textarea v-model="form.message" rows="5" :class="textareaClass" placeholder="Tell us about your inventory, team, and why you want to join CarBuy as a dealer."></textarea>
+              </div>
+
+              <div v-if="currentApplication" class="rounded-3xl border px-4 py-4 text-sm" :class="footerCardClass">
+                <p class="font-semibold" :class="titleClass">Latest application</p>
+                <p class="mt-2" :class="helperClass">Status: {{ currentApplication.status || 'pending' }}</p>
+                <p class="mt-1" :class="helperClass">Submitted on {{ formatDate(currentApplication.createdAt) }}</p>
+              </div>
+
+              <div>
                 <label :class="labelClass">Inventory size</label>
                 <select v-model="form.inventorySize" :class="selectClass">
                   <option value="">Select size</option>
@@ -119,7 +130,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
 
@@ -132,6 +143,7 @@ const submissionState = ref('Draft')
 const submitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const currentApplication = ref(null)
 
 const form = reactive({
   companyName: '',
@@ -177,6 +189,7 @@ const selectClass = computed(() => ['w-full', 'rounded-2xl', 'border', 'px-4', '
 const submitBtnClass = computed(() => ['rounded-2xl', 'px-6', 'py-3', 'font-semibold', 'text-white', 'transition', 'bg-gradient-to-r', 'from-blue-500', 'to-cyan-500', 'shadow-lg', 'shadow-blue-500/20', 'hover:from-blue-400', 'hover:to-cyan-400', 'disabled:opacity-60'].join(' '))
 const secondaryBtnClass = computed(() => ['rounded-2xl', 'px-6', 'py-3', 'font-medium', 'transition', theme.value === 'dark' ? 'border border-white/10 bg-white/5 text-gray-200 hover:bg-white/10' : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'].join(' '))
 const badgeClass = computed(() => theme.value === 'dark' ? 'border-white/10 bg-white/5 text-gray-200' : 'border-gray-200 bg-slate-50 text-gray-700')
+const secondaryLinkClass = computed(() => ['rounded-full px-4 py-2 text-sm font-medium transition', theme.value === 'dark' ? 'border border-white/10 bg-white/5 text-gray-200 hover:bg-white/10' : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'].join(' '))
 
 function fillFromProfile() {
   form.contactName = localStorage.getItem('username') || form.contactName
@@ -184,7 +197,31 @@ function fillFromProfile() {
   form.phone = localStorage.getItem('profilePhone') || form.phone
 }
 
-function submitApplication() {
+function formatDate(value) {
+  if (!value) return 'unknown'
+  return new Date(value).toLocaleDateString()
+}
+
+async function loadCurrentApplication() {
+  const token = localStorage.getItem('token')
+  if (!token) return
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/dealer-applications/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const data = await response.json()
+    if (response.ok && data.application) {
+      currentApplication.value = data.application
+      Object.assign(form, data.application)
+      submissionState.value = data.application.status || 'Draft'
+    }
+  } catch (error) {
+    console.warn('Failed to load dealer application', error)
+  }
+}
+
+async function submitApplication() {
   errorMessage.value = ''
   successMessage.value = ''
 
@@ -195,19 +232,23 @@ function submitApplication() {
 
   submitting.value = true
   try {
-    const stored = JSON.parse(localStorage.getItem('dealerApplications') || '[]')
-    const application = {
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-      createdAt: new Date().toISOString(),
-      userEmail: localStorage.getItem('email') || form.email,
-      ...form,
-      status: 'pending'
-    }
-    stored.unshift(application)
-    localStorage.setItem('dealerApplications', JSON.stringify(stored))
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${apiBaseUrl}/api/dealer-applications`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(form)
+    })
+
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.message || 'Failed to submit application')
+
+    currentApplication.value = data.application
+    submissionState.value = data.application?.status || 'pending'
+    successMessage.value = 'Your dealer application has been submitted for review.'
     localStorage.setItem('dealerApplicationDraft', JSON.stringify(form))
-    submissionState.value = 'Submitted'
-    successMessage.value = 'Your dealer application has been saved. A review workflow can be connected later.'
   } catch (error) {
     errorMessage.value = error?.message || 'Failed to submit application.'
   } finally {
@@ -226,5 +267,14 @@ onMounted(() => {
   }
 
   fillFromProfile()
+  loadCurrentApplication()
 })
+
+watch(
+  form,
+  (value) => {
+    localStorage.setItem('dealerApplicationDraft', JSON.stringify(value))
+  },
+  { deep: true }
+)
 </script>

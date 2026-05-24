@@ -39,8 +39,7 @@
 							<!-- header: name above, price + indicator on same line below -->
 							<div>
 								<div class="text-base font-semibold">{{ car.make }} {{ car.model }}</div>
-
-													<div class="mt-1 text-sm text-gray-400">{{ headlineDisplay }}</div>
+								<div class="mt-1 text-sm text-gray-400">{{ headlineDisplay }}</div>
 
 								<div class="mt-2 flex items-center gap-3">
 									<div class="text-2xl font-bold">${{ car.price }}</div>
@@ -230,7 +229,7 @@
 			<div class="mt-4 layout-card">
 				<div class="grid gap-3 layout-70-30">
 					<div :class="sellerCardClass + ' mt-4'">
-						<h3 class="text-2xl font-medium ml-2 mb-3">About seller / dealer</h3>
+						<h3 class="text-2xl font-medium ml-2 mb-3">{{ sellerTypeLabel }}</h3>
 						<div class="flex items-start gap-4">
 							<img :src="seller.avatar" alt="seller avatar" class="w-16 h-16 rounded-full object-cover" />
 							<div class="flex-1">
@@ -259,6 +258,7 @@
 				</div>
 			</div>
 
+			<!-- Recommended cars -->
 			<div class="mt-4 layout-card" ref="similarSectionRef">
 				<div class="w-full">
 					<div :class="cardClass + ' mt-4'">
@@ -355,6 +355,8 @@ export default {
 			return `${headline.slice(0, 26)}…`
 		})
 
+		const sellerTypeLabel = computed(() => currentAd.value?.owner?.role === 'dealer' ? 'Certified dealer' : 'Private seller')
+
 		function readParkedCars() {
 			try {
 				const parsed = JSON.parse(localStorage.getItem('parkedCars') || '[]')
@@ -368,7 +370,47 @@ export default {
 			localStorage.setItem('parkedCars', JSON.stringify(items))
 		}
 
-		function togglePark() {
+		function authHeaders() {
+			const token = localStorage.getItem('token')
+			return token ? { Authorization: `Bearer ${token}` } : {}
+		}
+
+		async function syncParkedToServer(items) {
+			const token = localStorage.getItem('token')
+			if (!token) return
+			try {
+				await fetch(`${apiBaseUrl}/api/auth/parked-cars`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json', ...authHeaders() },
+					body: JSON.stringify({ parkedCars: items })
+				})
+			} catch (err) {
+				console.error('Failed to sync parked cars to server', err)
+			}
+		}
+
+		async function mergeParkedWithServer() {
+			const token = localStorage.getItem('token')
+			if (!token) return
+			try {
+				const res = await fetch(`${apiBaseUrl}/api/auth/parked-cars`, { headers: authHeaders() })
+				const data = await res.json()
+				if (!res.ok) throw new Error(data.message || 'Failed to fetch server parked cars')
+				const server = Array.isArray(data.parkedCars) ? data.parkedCars : []
+				const local = readParkedCars()
+				const map = new Map()
+				server.forEach(item => map.set(String(item._id || item.id), item))
+				local.forEach(item => { const id = String(item._id || item.id); if (!map.has(id)) map.set(id, item) })
+				const merged = Array.from(map.values()).slice(0, 50)
+				writeParkedCars(merged)
+				await syncParkedToServer(merged)
+				isParked.value = merged.some(item => String(item._id || item.id) === String(currentAd.value?._id))
+			} catch (err) {
+				console.error('Merge parked cars failed', err)
+			}
+		}
+
+		async function togglePark() {
 			if (!currentAd.value) return
 			const parked = readParkedCars()
 			const adId = String(currentAd.value._id)
@@ -382,12 +424,15 @@ export default {
 					images: currentAd.value.images || currentAd.value.details?.images || [],
 					createdAt: currentAd.value.createdAt
 				})
-				writeParkedCars(parked.slice(0, 50))
+				const newList = parked.slice(0, 50)
+				writeParkedCars(newList)
 				isParked.value = true
+				await syncParkedToServer(newList)
 			} else {
 				parked.splice(existingIndex, 1)
 				writeParkedCars(parked)
 				isParked.value = false
+				await syncParkedToServer(parked)
 			}
 		}
 
@@ -415,7 +460,7 @@ export default {
 		async function loadAd() {
 			if (!id) return
 			try {
-				const res = await fetch(`http://localhost:4000/api/ads/${id}`)
+				const res = await fetch(`${apiBaseUrl}/api/ads/${id}`)
 				const data = await res.json()
 				if (!res.ok) throw new Error(data.message || 'Failed to load ad')
 				const ad = data.ad
@@ -529,6 +574,8 @@ export default {
 		async function loadSimilarCars(ad) {
 			const currentPrice = parseNumber(ad?.details?.price || ad?.vehicle?.price)
 			const currentMake = String(ad?.vehicle?.make || '').trim()
+			const currentOwnerId = String(ad?.owner?._id || '')
+			const currentOwnerIsDealer = ad?.owner?.role === 'dealer'
 
 			if (!currentPrice) {
 				similarCars.value = []
@@ -563,6 +610,10 @@ export default {
 
 			const filtered = matches
 				.filter(item => item?._id !== ad?._id)
+				.filter(item => {
+					if (!currentOwnerIsDealer || !currentOwnerId) return true
+					return String(item?.owner?._id || '') === currentOwnerId
+				})
 				.map(item => ({
 					item,
 					delta: Math.abs(parseNumber(item?.details?.price || item?.vehicle?.price) - currentPrice)
@@ -705,7 +756,7 @@ export default {
 		// load ad when component mounts
 		onMounted(() => {
 			updateSellerMeasurements()
-			loadAd()
+			loadAd().then(() => { mergeParkedWithServer() }).catch(() => { /* ignore */ })
 			window.addEventListener('resize', updateSellerMeasurements)
 			window.addEventListener('scroll', onScroll)
 		})
@@ -781,7 +832,7 @@ export default {
 			else router.push({ name: 'Home' })
 		}
 
-				return { images, index, currentImage, next, prev, setIndex, car, seller, theme, containerClass, cardClass, priceClass, titleClass, statClass, specCardClass, techCardClass, featuresCardClass, descriptionCardClass, technical, visibleTechnical, visibleCount, showMore, showMoreClass, toggleShowMore, features, featuresVisibleCount, featuresShowMore, visibleFeatures, featuresItemClass, featuresCheckClass, featuresToggleClass, toggleFeaturesShowMore, sellerCardClass, navButtonClass, rowBg, featuresRowBg, sellerRef, sellerStyle, description, descriptionVisibleCount, descriptionShowMore, visibleDescription, descriptionToggleClass, toggleDescriptionShowMore, similarRef, similarSectionRef, similarCars, scrollSimilarLeft, scrollSimilarRight, goBack, phoneRevealed, phoneDisplay, togglePhone, sellerShortAddress, headlineDisplay, togglePark, isParked }
+				return { images, index, currentImage, next, prev, setIndex, car, seller, theme, containerClass, cardClass, priceClass, titleClass, statClass, specCardClass, techCardClass, featuresCardClass, descriptionCardClass, technical, visibleTechnical, visibleCount, showMore, showMoreClass, toggleShowMore, features, featuresVisibleCount, featuresShowMore, visibleFeatures, featuresItemClass, featuresCheckClass, featuresToggleClass, toggleFeaturesShowMore, sellerCardClass, navButtonClass, rowBg, featuresRowBg, sellerRef, sellerStyle, description, descriptionVisibleCount, descriptionShowMore, visibleDescription, descriptionToggleClass, toggleDescriptionShowMore, similarRef, similarSectionRef, similarCars, scrollSimilarLeft, scrollSimilarRight, goBack, phoneRevealed, phoneDisplay, togglePhone, sellerShortAddress, headlineDisplay, sellerTypeLabel, togglePark, isParked }
 	}
 }
 </script>
